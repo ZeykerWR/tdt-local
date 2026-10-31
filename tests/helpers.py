@@ -188,14 +188,19 @@ class ServerProcess:
         self.log_path = Path(data_dir) / "server-output.log"
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self._log = self.log_path.open("wb")
-        case.addCleanup(self._log.close)
         self.proc = subprocess.Popen(
             [sys.executable, "-m", "tdtlocal", "--port", str(self.port), "--data-dir", data_dir, *args],
             cwd=PROJECT_DIR,
             stdout=self._log,
             stderr=subprocess.STDOUT,
         )
-        case.addCleanup(self.proc.kill)
+        case.addCleanup(self._stop)
+
+    def _stop(self) -> None:
+        """Kill the process and wait for it, so that Windows lets the temporary folder be removed."""
+        self.proc.kill()
+        self.proc.wait(10)
+        self._log.close()
 
     def output(self) -> str:
         self._log.flush()

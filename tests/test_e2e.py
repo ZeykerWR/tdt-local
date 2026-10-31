@@ -35,7 +35,7 @@ class CommandLineTests(unittest.TestCase):
             origin.url("/RADIO.md"),
         )
 
-        data = server.get_json_when("/api/channels", lambda d: len(d["channels"]) >= 60)
+        data = server.get_json_when("/api/channels", lambda d: len(d["channels"]) >= 102)  # TV, then radio
         self.assertEqual(len([c for c in data["channels"] if c["kind"] == "tv"]), 60)
         self.assertEqual(len([c for c in data["channels"] if c["kind"] == "radio"]), 42)
         self.assertFalse(data["meta"]["ai"])
