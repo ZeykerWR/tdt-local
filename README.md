@@ -17,8 +17,8 @@ funciona igual.
 
 ## Instalar
 
-Descarga el instalador de tu sistema de la página de *Releases* (incluye todo lo necesario, no hace falta
-Python): **Windows** `.exe` (o `.zip` portable), **macOS** `.dmg` (Intel o Apple Silicon), **Linux** `.deb` o `.tar.gz`.
+Descarga el instalador de tu sistema de la página de
+[Releases](https://github.com/cibernicola/tdt-local/releases/latest) (incluye todo lo necesario, no hace falta Python): **Windows** `.exe` (o `.zip` portable), **macOS** `.dmg` (Intel o Apple Silicon), **Linux** `.deb` o `.tar.gz`.
 Los paquetes no están firmados, así que Windows y macOS avisarán la primera vez: en
 [docs/INSTALLERS.md](docs/INSTALLERS.md) está qué hacer, dónde guarda los datos y cómo se construyen.
 

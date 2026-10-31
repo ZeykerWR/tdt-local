@@ -79,10 +79,10 @@ Cada instalador lleva `LICENSE` (Apache 2.0), `NOTICE` (la cita de TDTChannels, 
 aplicación muestra los créditos en **Créditos y licencias** (`/about.html`). PyInstaller es GPL-2.0
 con una excepción que permite distribuir los programas generados con cualquier licencia.
 
-## Lo que no se ha podido comprobar desde el entorno de desarrollo
+## Qué está comprobado
 
-Las pruebas automáticas cubren el nombre de los paquetes, los ficheros de control, los iconos, la
-ruta de datos de cada sistema, el punto de entrada de escritorio y la validación de certificados.
-El empaquetado de macOS y Linux y el instalador de Windows solo se ejecutan de verdad en la CI de
-`release.yml`: la primera ejecución puede necesitar ajustes (por ejemplo, las etiquetas de los
-*runners* de macOS).
+La CI construye los cuatro instaladores en cada ejecución de `release.yml` y la versión 1.0.0 está publicada. Antes se
+ejecutan las pruebas de Python en Linux, Windows y macOS. El paquete portable de Windows generado por la CI se
+arrancó de verdad (servidor, API, créditos, ajustes y «Salir»). Los `.dmg`, el `.deb`, el `.tar.gz` y el
+`setup.exe` se construyen bien, pero no se han instalado ni abierto en un macOS, un Linux o un Windows limpios:
+si algo falla al instalar, abre una *issue* con el sistema y la versión.
