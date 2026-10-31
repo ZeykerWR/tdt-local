@@ -176,7 +176,7 @@ Para avisar de un problema de seguridad, mira [SECURITY.md](SECURITY.md).
 
 ```
 python -m unittest discover -s tests -t .            # pruebas de Python (sin dependencias)
-node --test "tests/js/**/*.test.mjs"                  # pruebas del código del navegador (Node 20+)
+node --test                                           # pruebas del código del navegador (Node 20+)
 python scripts/check.py                               # todo lo anterior y el lint, si está instalado
 pip install ruff pytest && ruff check . && ruff format --check .
 ```

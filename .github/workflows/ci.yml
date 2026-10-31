@@ -48,4 +48,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test "tests/js/**/*.test.mjs"
+      - run: node --test  # finds tests/js/*.test.mjs; Node 20 has no glob patterns

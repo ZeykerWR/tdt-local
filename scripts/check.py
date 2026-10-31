@@ -28,7 +28,7 @@ def steps() -> list[tuple[str, list[str] | None, str]]:
         ("pruebas de Python", [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", "."], ""),
         (
             "pruebas del navegador",
-            node and [node, "--test", "tests/js/**/*.test.mjs"],
+            node and [node, "--test"],
             "node no está instalado (Node 20 o superior)",
         ),
     ]
