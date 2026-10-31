@@ -48,7 +48,7 @@ class BuildHelperTests(unittest.TestCase):
         self.assertEqual(fields["Installed-Size"], "4096")
         self.assertIn("<", fields["Maintainer"])
         self.assertTrue(text.endswith("\n"))
-        self.assertNotIn("Homepage", text)  # no placeholder URL is invented
+        self.assertIn("Homepage: https://github.com/cibernicola/tdt-local\n", text)
         with mock.patch.object(build, "HOMEPAGE", "https://example.org/x"):
             self.assertIn("Homepage: https://example.org/x\n", build.deb_control("1.2.3", "amd64", 1))
 

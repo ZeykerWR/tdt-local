@@ -34,7 +34,7 @@ APP_NAME = "TDT local"
 SLUG = "tdt-local"
 
 DESCRIPTION = "Visor local de la TDT española y la radio, con guía, multivisión, subtítulos y asistente de IA local."
-HOMEPAGE = os.environ.get("TDT_HOMEPAGE", "")  # the repository URL, once there is one (the release CI sets it)
+HOMEPAGE = os.environ.get("TDT_HOMEPAGE", "https://github.com/cibernicola/tdt-local")
 
 
 def read_version() -> str:
@@ -72,7 +72,7 @@ def deb_control(version: str, arch: str, installed_size_kb: int) -> str:
         "Depends: libc6 (>= 2.31)\n"
         "Recommends: xdg-utils, ffmpeg\n"
         f"Installed-Size: {installed_size_kb}\n"
-        "Maintainer: TDT local contributors <noreply@example.invalid>\n"
+        "Maintainer: TDT local contributors <4579387+cibernicola@users.noreply.github.com>\n"
         + (f"Homepage: {HOMEPAGE}\n" if HOMEPAGE else "")
         + f"Description: {DESCRIPTION}\n"
         " Reproduce las listas públicas de TDTChannels desde un servidor local, sin las apps de cada cadena.\n"

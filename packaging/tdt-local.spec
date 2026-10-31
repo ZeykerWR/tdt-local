@@ -50,7 +50,7 @@ if sys.platform == "darwin":
         coll,
         name="TDT local.app",
         icon=str(ICONS / "icon.icns"),
-        bundle_identifier="io.github.tdt-local.app",
+        bundle_identifier="io.github.cibernicola.tdt-local",
         version=VERSION,
         info_plist={
             "CFBundleDisplayName": "TDT local",

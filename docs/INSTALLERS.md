@@ -63,7 +63,7 @@ python packaging/build.py
 Requisitos extra: en Windows, [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`ISCC.exe`); en
 macOS, las herramientas de línea de comandos de Xcode (`codesign`, `hdiutil`); en Linux, `dpkg-deb`
 para el `.deb` (el `.tar.gz` se genera siempre). El resultado queda en `dist/installers/`.
-Con `TDT_HOMEPAGE=https://…` se rellena la dirección del proyecto en el `.deb`.
+`TDT_HOMEPAGE` cambia la dirección del proyecto que lleva el `.deb` (por defecto, este repositorio).
 
 ## Publicar una versión
 
