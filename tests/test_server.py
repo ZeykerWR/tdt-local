@@ -355,16 +355,25 @@ class ProxyTests(ServerCase):
         self.assertEqual(self.proxy(self.origin.url("/seg0.ts"), extra="&c=unknown")[0], 403)
 
     def test_transcription_tap_receives_complete_segments_only_when_enabled(self):
+        # The browser has the whole segment before the server thread has queued it, so the test waits for it.
         hub = self.app.transcriber
         with mock.patch.object(hub, "submit") as submit, mock.patch.object(hub, "_work"):
             self.proxy(self.origin.url("/seg0.ts"), extra="&s=abc")
+            time.sleep(0.3)
             submit.assert_not_called()  # the session was never enabled
             hub.set_session("abc", True)
             self.proxy(self.origin.url("/seg0.ts"), extra="&s=abc")
-            self.assertEqual(submit.call_count, 1)
+            self.wait_until(lambda: submit.call_count == 1)
             self.assertEqual(len(submit.call_args.kwargs["data"]), 1000)
             self.proxy(self.origin.url("/seg0.ts"), extra="&s=abc", headers={"Range": "bytes=0-9"})
+            time.sleep(0.3)
             self.assertEqual(submit.call_count, 1)  # partial responses are not transcribed (only status 200)
+
+    @staticmethod
+    def wait_until(condition, timeout=5.0):
+        end = time.time() + timeout
+        while time.time() < end and not condition():
+            time.sleep(0.02)
 
     def test_playlist_session_tag_is_propagated(self):
         _, _, body = self.proxy(self.origin.url("/live.m3u8"), extra="&s=sess1")
