@@ -1,0 +1,75 @@
+name: Release
+
+# Builds the installers for Windows, macOS (Intel and Apple Silicon) and Linux.
+# Push a tag such as v1.0.0 to publish them in a GitHub release, or run it by hand to get the files as artifacts.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installers:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows x64, os: windows-latest }
+          - { name: macOS Intel, os: macos-15-intel }
+          - { name: macOS Apple Silicon, os: macos-latest }
+          # the oldest supported Ubuntu keeps the glibc requirement of the .deb low
+          - { name: Linux x64, os: ubuntu-22.04 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check that the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: python
+        run: |
+          import os, sys
+          sys.path.insert(0, ".")
+          from tdtlocal import __version__
+          tag = os.environ["GITHUB_REF_NAME"]
+          if tag != "v" + __version__:
+              sys.exit(f"el tag {tag} no coincide con la versión {__version__}")
+      - name: Tests
+        run: python -m unittest discover -s tests -t .
+      - name: Build tools
+        run: python -m pip install pyinstaller certifi
+      - name: Build the installers
+        env:
+          TDT_HOMEPAGE: ${{ github.server_url }}/${{ github.repository }}
+        run: python packaging/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: dist/installers/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: installers
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Combine the checksums
+        run: |
+          cd installers
+          cat SHA256SUMS-*.txt | sort -k2 -u > SHA256SUMS.txt
+          rm SHA256SUMS-*.txt
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" installers/* --repo "$GITHUB_REPOSITORY" --title "TDT local ${GITHUB_REF_NAME#v}" --generate-notes

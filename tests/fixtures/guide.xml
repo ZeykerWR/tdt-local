@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv>
+  <channel id="La1.TV"><display-name>La 1</display-name></channel>
+  <programme start="20000101000000 +0000" stop="20000101010000 +0000" channel="La1.TV">
+    <title>Programa pasado</title>
+  </programme>
+  <programme start="20990101200000 +0100" stop="20990101210000 +0100" channel="La1.TV">
+    <title>Telediario</title>
+    <desc>Las noticias del día.</desc>
+    <category>Noticias</category>
+  </programme>
+  <programme start="20990101190000 +0100" stop="20990101200000 +0100" channel="La1.TV">
+    <title>  Informativo  </title>
+    <category>Desconocido</category>
+  </programme>
+  <programme start="basura" stop="20990101210000 +0100" channel="La1.TV"><title>Fecha rota</title></programme>
+  <programme start="20990101220000 +0000" stop="20990101210000 +0000" channel="La1.TV"><title>Acaba antes</title></programme>
+  <programme start="20990101200000 +0000" stop="20990101210000 +0000" channel="La2.TV"><title></title></programme>
+  <programme start="20990101200000 +0000" stop="20990101210000 +0000"><title>Sin canal</title></programme>
+</tv>

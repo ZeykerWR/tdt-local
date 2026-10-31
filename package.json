@@ -1,0 +1,12 @@
+{
+  "name": "tdt-local",
+  "private": true,
+  "type": "module",
+  "description": "Test runner for the browser code of TDT local. No dependencies: it uses node --test.",
+  "scripts": {
+    "test": "node --test \"tests/js/**/*.test.mjs\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

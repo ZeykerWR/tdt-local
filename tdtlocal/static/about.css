@@ -1,0 +1,7 @@
+/* Credits page: the main stylesheet fixes the application to the viewport height, this one lets text scroll. */
+body.about { height: auto; overflow: auto; }
+body.about main { max-width: 46rem; margin: 0 auto; padding: 24px 16px 48px; line-height: 1.5; }
+body.about h1 small { font-size: .5em; color: var(--muted); font-weight: normal; margin-left: .4em; }
+body.about a { color: var(--accent); }
+body.about code { background: var(--panel); padding: 0 .3em; border-radius: 3px; }
+body.about li { margin: .5em 0; }

@@ -1,0 +1,46 @@
+TDT local
+Copyright 2026 TDT local contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+Redistributions of this work, with or without modification, must keep this NOTICE
+file (Apache License 2.0, section 4(d)) and credit the projects below.
+
+------------------------------------------------------------------------------
+Software and data this product is based on
+------------------------------------------------------------------------------
+
+TDTChannels  https://github.com/LaQuay/TDTChannels
+  Licence: Apache License 2.0 (repository contents).
+  The channel and radio lists (TELEVISION.md, RADIO.md) that TDT local reads are the
+  work of the TDTChannels project and its contributors. They are downloaded when the
+  program runs and are not distributed with it. The programme guides (XMLTV) are served
+  by tdtchannels.com and ondachannels.com and are additionally subject to the legal
+  notice published there (https://www.tdtchannels.com/aviso-legal/).
+  TDTChannels does not store any stream: it links to those that broadcasters publish
+  openly. Broadcast rights belong to the broadcasters.
+
+hls.js  https://github.com/video-dev/hls.js
+  Copyright (c) 2017 Dailymotion (http://www.dailymotion.com)
+  Licence: Apache License 2.0. Bundled, unmodified, in tdtlocal/static/vendor/
+  (licence text in hls.js-LICENSE.txt). Parts derived from videojs-contrib-hls,
+  Copyright (c) 2013-2015 Brightcove, also Apache License 2.0.
+
+------------------------------------------------------------------------------
+Optional programs TDT local can talk to (not included)
+------------------------------------------------------------------------------
+
+llama.cpp   https://github.com/ggml-org/llama.cpp     MIT       local AI assistant
+whisper.cpp https://github.com/ggml-org/whisper.cpp   MIT       live subtitles and voice alerts
+OpenAI Whisper models (ggml conversions)              MIT       speech recognition
+FFmpeg      https://ffmpeg.org                        LGPL/GPL  audio decoding (depends on the build)
+
+------------------------------------------------------------------------------
+Included in the installers (not in the source repository)
+------------------------------------------------------------------------------
+
+Python  https://www.python.org   Python Software Foundation License
+  The installers bundle the Python runtime; its licence is shipped as
+  licenses/PYTHON-LICENSE.txt.
+PyInstaller  https://pyinstaller.org   GPL-2.0 with the bootloader exception
+  Used to build the installers. The exception allows distributing the resulting
+  programs under any licence.

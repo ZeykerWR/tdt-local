@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>TDT local</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <main class="stage" aria-label="Reproductor">
+    <div class="screen" id="screen">
+      <div class="tiles single" id="tiles"></div>
+      <div class="osd" id="osd" aria-hidden="true">
+        <span class="osd-num" id="osdNum"></span>
+        <span class="osd-name" id="osdName"></span>
+      </div>
+      <section class="assist" id="assist" hidden aria-label="Asistente">
+        <form class="assist-form" id="askForm" autocomplete="off">
+          <input id="askInput" type="text" maxlength="500" aria-label="Pregunta o da una orden al asistente"
+                 placeholder="«hay fútbol ahora», «pon La 2 y TRECE en multivisión rotando cada 30 s»…">
+          <button class="btn primary" type="submit" id="askGo">Enviar</button>
+          <button class="btn" type="button" id="askClose">Cerrar</button>
+        </form>
+        <div class="assist-out" id="askOut" role="status" aria-live="polite"></div>
+      </section>
+      <section class="guide" id="guide" hidden aria-labelledby="guideTitle">
+        <header class="guide-head">
+          <h3 id="guideTitle">Programación</h3>
+          <button class="btn" id="guideClose" type="button">Cerrar</button>
+        </header>
+        <div class="guide-body" id="guideBody"></div>
+      </section>
+    </div>
+    <div class="deck">
+      <div class="now">
+        <span class="now-num" id="nowNum">--</span>
+        <div class="now-text">
+          <h2 id="nowName">Sin canal</h2>
+          <p id="nowInfo" role="status" aria-live="polite">Elige un canal de la lista.</p>
+          <p class="now-epg" id="nowEpg"></p>
+          <span class="epg-bar" id="epgBar" hidden><i></i></span>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="seg" id="sources" role="group" aria-label="Fuente"></div>
+        <div class="multi-ctl" id="multiCtl" hidden>
+          <div class="seg" role="group" aria-label="Disposición">
+            <button id="lyMosaic" type="button" aria-pressed="true">Cuadrícula</button>
+            <button id="lyFocus" type="button" aria-pressed="false">Foco</button>
+          </div>
+          <button class="btn" id="btnRot" type="button" aria-pressed="false" title="Pasa el audio de una casilla a la siguiente">Rotar</button>
+          <select id="rotSecs" aria-label="Segundos entre cambios">
+            <option value="10">10 s</option>
+            <option value="15">15 s</option>
+            <option value="20" selected>20 s</option>
+            <option value="30">30 s</option>
+            <option value="45">45 s</option>
+            <option value="60">60 s</option>
+          </select>
+        </div>
+        <button class="btn" id="btnMulti" type="button" aria-pressed="false" title="Ver cuatro canales a la vez">Multivisión</button>
+        <button class="btn" id="btnAsk" type="button" aria-pressed="false" hidden title="Preguntar o dar órdenes a la IA local (Ctrl+K)">Asistente</button>
+        <button class="btn" id="btnSub" type="button" aria-pressed="false" hidden title="Subtítulos en directo de la casilla activa, con Whisper (U)">Subtítulos</button>
+        <button class="btn" id="btnAlert" type="button" aria-pressed="false" hidden title="Avisarte cuando se diga una palabra en cualquier casilla">Alertas</button>
+        <button class="btn" id="btnGuide" type="button" aria-pressed="false" title="Programación del canal activo">Guía</button>
+        <button class="btn" id="btnFav" type="button" aria-pressed="false">Favorito</button>
+        <button class="btn" id="btnPip" type="button">Ventana flotante</button>
+        <button class="btn" id="btnFull" type="button">Pantalla completa</button>
+        <button class="btn" id="btnDel" type="button" hidden title="Quitar este canal de tus canales propios">Quitar canal</button>
+        <button class="btn" id="btnPanel" type="button" aria-controls="panel" aria-expanded="true">Ocultar canales</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="panel" id="panel" aria-label="Canales">
+    <header class="panel-head">
+      <div class="title-row">
+        <h1>TDT local</h1>
+        <span class="meta" id="meta"></span>
+      </div>
+      <div class="seg kinds" id="kinds" role="group" aria-label="Tipo de lista">
+        <button type="button" data-kind="tv" aria-pressed="true">Televisión</button>
+        <button type="button" data-kind="radio" aria-pressed="false">Radio</button>
+      </div>
+      <input type="search" id="q" placeholder="Buscar canal" autocomplete="off" aria-label="Buscar canal">
+      <div class="filters">
+        <select id="cat" aria-label="Categoría"></select>
+        <select id="grp" aria-label="Grupo" hidden></select>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="onlyStream" checked> Solo con directo</label>
+        <label><input type="checkbox" id="onlyFav"> Favoritos</label>
+        <label id="hideDownWrap" hidden><input type="checkbox" id="hideDown" checked> Ocultar caídos</label>
+      </div>
+    </header>
+
+    <ul class="list" id="list"></ul>
+
+    <footer class="panel-foot">
+      <div class="foot-actions">
+        <button class="btn" id="btnRefresh" type="button">Actualizar lista</button>
+        <button class="btn" id="btnCheck" type="button">Comprobar canales</button>
+        <button class="btn" id="btnSettings" type="button" title="Asistente de IA, subtítulos, modelos y listas">Ajustes</button>
+        <button class="btn" id="btnAdd" type="button" title="Añadir un canal con su enlace (m3u8, mp3/aac o YouTube)">Añadir canal</button>
+      </div>
+      <p class="foot-msg" id="footMsg" role="status" aria-live="polite"></p>
+      <p class="foot-about"><span id="aboutVersion">TDT local</span> · <a href="/about.html" target="_blank" rel="noopener">Créditos y licencias</a>
+        <button class="btn" id="btnQuit" type="button" hidden title="Cierra el servidor de TDT local">Salir</button></p>
+      <details class="keys">
+        <summary>Atajos de teclado</summary>
+        <dl>
+          <dt>0–9, Intro</dt><dd>ir al número de canal</dd>
+          <dt>Re Pág / Av Pág</dt><dd>canal anterior / siguiente</dd>
+          <dt>↑ ↓</dt><dd>lo mismo, con el foco fuera del vídeo</dd>
+          <dt>S</dt><dd>favorito</dd>
+          <dt>F</dt><dd>pantalla completa</dd>
+          <dt>M</dt><dd>silenciar</dd>
+          <dt>P</dt><dd>ventana flotante</dd>
+          <dt>T</dt><dd>cambiar entre televisión y radio</dd>
+          <dt>G</dt><dd>guía de programación del canal (Esc la cierra)</dd>
+          <dt>U</dt><dd>subtítulos en directo (Whisper) de la casilla activa</dd>
+          <dt>Ctrl + K</dt><dd>asistente de IA: preguntas y órdenes</dd>
+          <dt>V</dt><dd>multivisión (4 canales)</dd>
+          <dt>← →</dt><dd>multivisión: pasar el audio a otra casilla</dd>
+          <dt>R</dt><dd>multivisión: rotar el audio</dd>
+          <dt>C</dt><dd>ocultar / mostrar la lista de canales</dd>
+          <dt>/</dt><dd>buscar</dd>
+        </dl>
+      </details>
+    </footer>
+  </aside>
+
+</div>
+<dialog class="dlg" id="addDlg" aria-labelledby="addTitle">
+  <form id="addForm" autocomplete="off">
+    <h3 id="addTitle">Añadir canal propio</h3>
+    <label>Tipo
+      <select id="addKind"><option value="tv">Televisión</option><option value="radio">Radio</option></select>
+    </label>
+    <label>Nombre <input id="addName" type="text" required maxlength="80" placeholder="La Sexta"></label>
+    <label>Enlace <input id="addUrl" type="text" required placeholder="https://… .m3u8, mp3/aac o un enlace de YouTube"></label>
+    <label>Cabeceras de la petición
+      <select id="addHdr">
+        <option value="">Ninguna</option>
+        <option value="atres">Atresplayer (La Sexta, Antena 3…)</option>
+        <option value="custom">Otras…</option>
+      </select>
+    </label>
+    <div id="addExtra" hidden>
+      <label>Origin <input id="addOrigin" type="text" placeholder="https://www.ejemplo.com"></label>
+      <label>Referer <input id="addReferer" type="text" placeholder="https://www.ejemplo.com/directo/"></label>
+    </div>
+    <p class="dlg-hint">El enlace lo pones tú (por ejemplo el que ves en las herramientas del navegador). Los enlaces con
+      permiso temporal caducan y habrá que cambiarlos. Nada de DRM ni geobloqueos: solo se envían las cabeceras que indiques.</p>
+    <p class="dlg-msg" id="addMsg" role="status"></p>
+    <div class="dlg-actions">
+      <button class="btn primary" type="submit">Añadir</button>
+      <button class="btn" type="button" id="addCancel">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+<dialog class="dlg dlg-wide" id="setDlg" aria-labelledby="setTitle">
+  <form id="setForm" autocomplete="off" novalidate>
+    <h3 id="setTitle">Ajustes</h3>
+    <div class="tabs" id="setTabs" role="tablist" aria-label="Secciones de ajustes"></div>
+    <div class="tab-panels" id="setPanels"></div>
+    <p class="dlg-msg" id="setMsg" role="status"></p>
+    <div class="dlg-actions">
+      <button class="btn primary" type="submit">Guardar</button>
+      <button class="btn" type="button" id="setClose">Cerrar</button>
+    </div>
+  </form>
+</dialog>
+<dialog class="dlg" id="alertDlg" aria-labelledby="alertTitle">
+  <form id="alertForm">
+    <h3 id="alertTitle">Alertas por voz</h3>
+    <label>Palabras o frases a vigilar, separadas por comas
+      <textarea id="alertWords" rows="3" placeholder="terremoto, nombre de tu equipo, un político…"></textarea>
+    </label>
+    <label class="chk"><input type="checkbox" id="alertOn"> Vigilar lo que se dice (transcribe todas las casillas del mosaico)</label>
+    <label class="chk"><input type="checkbox" id="alertJump" checked> Pasar el audio a la casilla donde se diga</label>
+    <p class="dlg-hint">Whisper transcribe en tu equipo: el audio no sale de él. Las coincidencias ignoran mayúsculas y tildes.
+      Cada casilla vigilada usa la GPU un poco más.</p>
+    <div class="dlg-actions">
+      <button class="btn primary" type="submit">Guardar</button>
+      <button class="btn" type="button" id="alertCancel">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+<script src="/vendor/hls.min.js"></script>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

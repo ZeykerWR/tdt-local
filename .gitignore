@@ -1,0 +1,35 @@
+# Runtime data: downloaded lists, caches, own channels (may contain private links)
+/data/
+/models/
+
+# Per-machine launcher overrides
+/iniciar.local.bat
+/iniciar.local.sh
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+/build/
+/dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node (only used to run the browser-code tests; there are no dependencies)
+node_modules/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Old La Sexta experiment (not part of the project)
+/experimentos/
