@@ -1,24 +1,15 @@
 """End to end: the real command (``python -m tdtlocal``) against a fake list server."""
 
-import json
 import socket
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
-import urllib.request
 from pathlib import Path
 
 from tdtlocal.config import PROJECT_DIR
 
-from .helpers import FakeOrigin, fixture, make_tv_markdown
-
-
-def free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+from .helpers import FakeOrigin, ServerProcess, fixture, make_tv_markdown
 
 
 class CommandLineTests(unittest.TestCase):
@@ -32,57 +23,29 @@ class CommandLineTests(unittest.TestCase):
         origin.routes["/RADIO.md"] = (200, {}, radio.encode())
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        port = free_port()
-        proc = subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "tdtlocal",
-                "--port",
-                str(port),
-                "--data-dir",
-                tmp.name,
-                "--no-epg",
-                "--no-ai",
-                "--no-stt",
-                "--source",
-                origin.url("/TELEVISION.md"),
-                "--radio-source",
-                origin.url("/RADIO.md"),
-            ],
-            cwd=PROJECT_DIR,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+        server = ServerProcess(
+            self,
+            tmp.name,
+            "--no-epg",
+            "--no-ai",
+            "--no-stt",
+            "--source",
+            origin.url("/TELEVISION.md"),
+            "--radio-source",
+            origin.url("/RADIO.md"),
         )
-        self.addCleanup(proc.kill)
-        base = f"http://127.0.0.1:{port}"
 
-        def fetch(path):
-            with urllib.request.urlopen(base + path, timeout=5) as response:
-                return response.status, response.read()
-
-        data = None
-        deadline = time.time() + 20
-        while time.time() < deadline:
-            try:
-                _, body = fetch("/api/channels")
-                data = json.loads(body)
-                if len(data["channels"]) >= 60:
-                    break
-            except OSError:
-                pass
-            time.sleep(0.2)
-        self.assertIsNotNone(data, "the server never answered")
+        data = server.get_json_when("/api/channels", lambda d: len(d["channels"]) >= 60)
         self.assertEqual(len([c for c in data["channels"] if c["kind"] == "tv"]), 60)
         self.assertEqual(len([c for c in data["channels"] if c["kind"] == "radio"]), 42)
         self.assertFalse(data["meta"]["ai"])
         self.assertFalse(data["meta"]["stt"])
-        self.assertEqual(fetch("/")[0], 200)
+        self.assertEqual(server.get("/")[0], 200)
         self.assertTrue((Path(tmp.name) / "tv.json").exists())  # the cache for the next start
 
-        proc.terminate()
+        server.proc.terminate()
         try:
-            proc.wait(10)
+            server.proc.wait(10)
         except subprocess.TimeoutExpired:
             self.fail("the server did not stop after SIGTERM")
 

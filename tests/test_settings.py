@@ -1,8 +1,6 @@
 import hashlib
 import json
 import os
-import subprocess
-import sys
 import threading
 import time
 import unittest
@@ -721,65 +719,36 @@ class SettingsEndToEndTests(unittest.TestCase):
     """The real command: a saved setting is used after a restart, and a flag overrides it."""
 
     def test_saved_settings_persist_and_flags_win(self):
-        import socket
         import tempfile
-        import urllib.request
 
-        from tdtlocal.config import PROJECT_DIR
+        from .helpers import NO_PROXY, ServerProcess
 
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
 
-        def free_port():
-            with socket.socket() as s:
-                s.bind(("127.0.0.1", 0))
-                return s.getsockname()[1]
-
         def session(*extra, change=None):
-            port = free_port()
-            proc = subprocess.Popen(
-                [
-                    sys.executable,
-                    "-m",
-                    "tdtlocal",
-                    "--port",
-                    str(port),
-                    "--data-dir",
-                    tmp.name,
-                    "--no-epg",
-                    "--source",
-                    "http://127.0.0.1:9/x",
-                    "--radio-source",
-                    "http://127.0.0.1:9/y",
-                    *extra,
-                ],
-                cwd=PROJECT_DIR,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+            server = ServerProcess(
+                self,
+                tmp.name,
+                "--no-epg",
+                "--source",
+                "http://127.0.0.1:9/x",
+                "--radio-source",
+                "http://127.0.0.1:9/y",
+                *extra,
             )
-            self.addCleanup(proc.kill)
-            base = f"http://127.0.0.1:{port}"
-            end = time.time() + 20
-            while True:
-                try:
-                    with urllib.request.urlopen(base + "/api/settings", timeout=3) as r:
-                        snap = json.loads(r.read())
-                    break
-                except OSError:
-                    if time.time() > end:
-                        raise
-                    time.sleep(0.2)
+            snap = server.get_json_when("/api/settings")
             if change:
                 request = urllib.request.Request(
-                    base + "/api/settings",
+                    server.base + "/api/settings",
                     data=json.dumps(change).encode(),
                     method="POST",
                     headers={"Content-Type": "application/json"},
                 )
-                with urllib.request.urlopen(request, timeout=5) as r:
+                with NO_PROXY.open(request, timeout=5) as r:
                     snap = json.loads(r.read())["settings"]
-            proc.terminate()
-            proc.wait(10)
+            server.proc.terminate()
+            server.proc.wait(10)
             return snap
 
         first = session(change={"llm_model": "saved-model", "whisper_lang": "en"})

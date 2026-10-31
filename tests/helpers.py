@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import http.client
 import json
+import socket
+import subprocess
+import sys
 import tempfile
 import threading
+import time
 import unittest
+import urllib.request
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, ClassVar
 
 from tdtlocal.app import App
-from tdtlocal.config import Config
+from tdtlocal.config import PROJECT_DIR, Config
 from tdtlocal.server import TdtServer, create_server
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -162,3 +167,58 @@ class ServerCase(AppCase):
     def post_json(self, path: str, body: Any = None, **kwargs: Any) -> tuple[int, Any]:
         status, _, data = self.request("POST", path, body if body is not None else {}, **kwargs)
         return status, json.loads(data.decode("utf-8"))
+
+
+# ---- real server processes (end to end tests)
+NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # the system proxy must not see loopback
+
+
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+class ServerProcess:
+    """``python -m tdtlocal`` running for real. Its output goes to a file shown when a test fails."""
+
+    def __init__(self, case: unittest.TestCase, data_dir: str, *args: str) -> None:
+        self.port = free_port()
+        self.base = f"http://127.0.0.1:{self.port}"
+        self.log_path = Path(data_dir) / "server-output.log"
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._log = self.log_path.open("wb")
+        case.addCleanup(self._log.close)
+        self.proc = subprocess.Popen(
+            [sys.executable, "-m", "tdtlocal", "--port", str(self.port), "--data-dir", data_dir, *args],
+            cwd=PROJECT_DIR,
+            stdout=self._log,
+            stderr=subprocess.STDOUT,
+        )
+        case.addCleanup(self.proc.kill)
+
+    def output(self) -> str:
+        self._log.flush()
+        return self.log_path.read_text(encoding="utf-8", errors="replace")
+
+    def get(self, path: str, timeout: float = 5) -> tuple[int, bytes]:
+        with NO_PROXY.open(self.base + path, timeout=timeout) as response:
+            return response.status, response.read()
+
+    def get_json_when(self, path: str, ready: Callable[[Any], bool] = lambda data: True, timeout: float = 40) -> Any:
+        """Poll ``path`` until ``ready(data)``; fail with the server's own output if it never happens."""
+        end = time.time() + timeout
+        last: Exception | None = None
+        while time.time() < end:
+            if self.proc.poll() is not None:
+                raise AssertionError(f"the server exited with code {self.proc.returncode}:\n{self.output()}")
+            try:
+                data = json.loads(self.get(path)[1])
+                if ready(data):
+                    return data
+            except OSError as exc:
+                last = exc
+            time.sleep(0.2)
+        raise AssertionError(
+            f"{path} not ready after {timeout:.0f} s (last error: {last!r}). Server output:\n{self.output()}"
+        )
