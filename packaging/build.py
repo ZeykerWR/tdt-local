@@ -22,6 +22,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+import time
 import zipfile
 from pathlib import Path
 
@@ -219,7 +220,16 @@ def build_macos(version: str, _app_dir: Path) -> list[Path]:
     for name in ("LICENSE", "NOTICE"):
         shutil.copy2(ROOT / name, staging / name)
     dmg = OUT / artifact_name(version, f"macos-{machine()}", "dmg")
-    run(["hdiutil", "create", "-volname", APP_NAME, "-srcfolder", staging, "-ov", "-format", "UDZO", dmg])
+    # hdiutil fails now and then with "Resource busy" on CI runners (a disk-image helper still holds the volume)
+    for attempt in range(1, 6):
+        try:
+            run(["hdiutil", "create", "-volname", APP_NAME, "-srcfolder", staging, "-ov", "-format", "UDZO", dmg])
+            break
+        except subprocess.CalledProcessError:
+            if attempt == 5:
+                raise
+            print(f"hdiutil falló (intento {attempt} de 5); se reintenta", flush=True)
+            time.sleep(10)
     return [dmg]
 
 
