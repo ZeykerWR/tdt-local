@@ -1,5 +1,11 @@
 # Seguridad
 
+## Antes de nada: sed prudentes
+
+TDT local es una versión incipiente, de uso personal y «vibecodeada» con IA. Tiene defensas y pruebas, pero no ha
+pasado ninguna auditoría: **supón que hay agujeros** y no lo expongas a internet. Que alguien los encuentre y me
+avise es justo lo que se agradece. Gracias de antemano.
+
 ## Modelo de amenazas
 
 TDT local está pensado para ejecutarse en **tu propio equipo**, escuchando solo en `127.0.0.1`.
@@ -20,9 +26,10 @@ Defiende de:
 
 ## Cómo informar de una vulnerabilidad
 
-Usa los *avisos privados de seguridad* de GitHub del repositorio (pestaña **Security** ➜
-**Report a vulnerability**) o escribe al mantenedor por el correo de su perfil. Por favor, no abras
-una *issue* pública con los detalles. Intentaremos responder en unos días.
+Por favor, no publiques los detalles de entrada. Abre una *issue* que diga solo «he encontrado un problema de
+seguridad» (sin explicar cuál) o escríbeme por el [hilo de Twitter](https://x.com/cibernicola_es/status/2116114114686627845), y acordamos cómo contármelo en privado. Si el
+repositorio tiene activados los *avisos privados de seguridad* de GitHub (pestaña **Security** ➜
+**Report a vulnerability**), mejor aún. Es un proyecto personal: contesto cuando puedo, normalmente en unos días.
 
 ## Versiones con soporte
 

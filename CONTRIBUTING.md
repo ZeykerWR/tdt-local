@@ -1,7 +1,12 @@
 # Contribuir
 
-Gracias por querer mejorar TDT local. Es un proyecto pequeño y con una norma principal: **cero
-dependencias en ejecución** (solo la biblioteca estándar de Python y JavaScript del navegador).
+Gracias por querer mejorar TDT local. Esto empezó como un cacharro personal y hoy es público porque os
+interesó, así que **cualquier ayuda es bienvenida**: una *issue* que diga «esto no me va», una idea, una
+corrección de una errata, un *pull request* de cien líneas o un comentario sincero sobre lo mal que está
+algo. No hace falta pedir permiso para empezar; si el cambio es grande, una *issue* antes ahorra disgustos.
+
+Es un proyecto pequeño y con una norma principal: **cero dependencias en ejecución** (solo la biblioteca
+estándar de Python y JavaScript del navegador).
 
 ## Licencia de tus contribuciones
 

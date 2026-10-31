@@ -2,6 +2,12 @@
 
 [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 
+> [!WARNING]
+> **Esto es un cacharro personal que se escapó.** Versión incipiente, hecha para mi uso y publicada porque
+> varios me lo pedisteis. Está «vibecodeado» con IA, así que los bichos y los agujeros de seguridad son más
+> probables que improbables. Úsalo con cariño, no lo expongas a internet y lee la
+> [letra pequeña](#letra-pequeña-con-cariño). Las críticas, las *issues* y los *pull requests* son bienvenidos.
+
 Visor web **local** para ver la TDT española y escuchar la radio en el PC sin las apps de cada
 cadena. Usa las listas públicas de [TDTChannels](https://github.com/LaQuay/TDTChannels)
 (`TELEVISION.md` y `RADIO.md`) y se actualiza solo. Solo biblioteca estándar de Python:
@@ -14,6 +20,39 @@ funciona igual.
 > playback through a local proxy, programme guide (XMLTV), 4-channel multi-view with rotating audio,
 > optional local AI assistant (any OpenAI-compatible server such as llama.cpp) and live subtitles
 > and voice alerts (whisper.cpp). The interface is in Spanish.
+
+## Letra pequeña (con cariño)
+
+**De dónde sale esto.** Empezó como un visor de tele para mi propio PC: uno que no me pidiera abrir seis
+apps de seis cadenas para ver el telediario. Lo enseñé en [Twitter](https://x.com/cibernicola_es/status/2116114114686627845), la gente preguntó «¿y eso dónde se
+baja?» y aquí estamos: el repositorio es público por vuestra culpa (y me alegro). No es un producto, no tiene
+hoja de soporte y la versión 1.0.0 se llama así porque el contador tenía que empezar en alguna parte.
+
+**Cómo está hecho.** «Vibecodeado»: lo he ido construyendo conversando con una IA (Claude), yo dirigiendo, probando y
+diciendo «eso no» de vez en cuando. Hay más de 250 pruebas automáticas, lo que demuestra que pasan, no que el código
+sea perfecto. Funciona en mi máquina™ y también en la CI de GitHub, que ya es algo más que mi máquina.
+
+**Seguridad: sed prudentes.**
+- Es un servidor web que hace de *proxy* y que, si le dices dónde está `whisper-server`, ejecuta ese programa. Tiene
+  defensas (están en [SECURITY.md](SECURITY.md)), pero que yo no haya encontrado fallos no significa que no estén:
+  lo razonable es suponer que los hay.
+- Pensado para escuchar solo en `127.0.0.1`. **No lo expongas a internet** y usa `--lan` solo en redes de confianza:
+  no hay autenticación.
+- Si pones una clave de API en Ajustes se guarda en tu equipo, en `settings.json`, en claro. Mejor una clave que
+  puedas revocar, o pásala por la variable `TDT_LLM_API_KEY`.
+
+**Errores.** Más que probables. Los instaladores no están firmados y los de macOS y Linux no se han probado en
+máquinas limpias. Los enlaces de las cadenas cambian y caducan cuando les da la gana. Los subtítulos con Whisper
+alucinan con música y con voces solapadas. Si algo se rompe, llámalo «función sin documentar».
+
+**Sin garantías ni parentesco.** Es software libre bajo [Apache 2.0](LICENSE), que dice en mayúsculas que se ofrece
+«tal cual». No tengo relación con TDTChannels ni con ninguna cadena: yo solo enlazo lo que ellos publican. Sin su
+trabajo esto no existiría; si ves algo bien, el mérito es suyo, y si ves algo mal, es mío.
+
+**Cómo ayudar.** Se agradece todo: una *issue* contando que no te funciona, una idea, un «esto lo harías mejor
+así», un *pull request* o un tuit. Lo único que pido es que, si encuentras un agujero de seguridad, no lo cuentes
+con todos los detalles en público antes de avisarme ([cómo](SECURITY.md#cómo-informar-de-una-vulnerabilidad)). Más
+sobre cómo colaborar en [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Instalar
 
