@@ -19,7 +19,8 @@ export function filterChannels(channels, f) {
 }
 
 /** Passes the filters that do not depend on category, group, favourites or search. */
-export const isListed = (c, f) => c.kind === f.kind && (!f.onlyStream || c.sources.length > 0) && !(f.hideDown && c.ok === false);
+// a channel the user added is always listed, even if it can only be watched on its web ("solo con directo" is for the lists)
+export const isListed = (c, f) => c.kind === f.kind && (!f.onlyStream || c.sources.length > 0 || !!c.custom) && !(f.hideDown && c.ok === false);
 
 /** Categories (in list order) and, for the chosen one, its groups. */
 export function categoriesOf(channels, kind, cat) {

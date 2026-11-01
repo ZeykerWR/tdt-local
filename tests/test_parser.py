@@ -102,6 +102,15 @@ class CustomEntryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_custom_entry("no es un dict")
 
+    def test_a_channel_that_only_has_a_web_page_is_allowed(self):
+        e = build_custom_entry({"name": "Telecinco", "web": "https://www.mediasetinfinity.es/directo/telecinco/"})
+        self.assertEqual(e["sources"], [])
+        self.assertEqual(e["web"], "https://www.mediasetinfinity.es/directo/telecinco/")
+        with self.assertRaises(ValueError):  # a web page that is not http(s) is not one
+            build_custom_entry({"name": "Telecinco", "web": "javascript:alert(1)"})
+        with self.assertRaises(ValueError):
+            build_custom_entry({"name": "", "web": "https://www.mediasetinfinity.es/directo/telecinco/"})
+
     def test_headers_are_whitelisted_and_cannot_inject_lines(self):
         e = build_custom_entry(
             {

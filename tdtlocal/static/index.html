@@ -140,6 +140,15 @@
 <dialog class="dlg" id="addDlg" aria-labelledby="addTitle">
   <form id="addForm" autocomplete="off">
     <h3 id="addTitle">Añadir canal propio</h3>
+    <fieldset class="add-groups">
+      <legend>Atresmedia con un clic</legend>
+      <p class="dlg-hint">Añade Antena 3, La Sexta, Neox, Nova, Mega y Atreseries con el reproductor oficial de Atresplayer
+        dentro de TDT local (con sus anuncios y su aviso de cookies). Mediaset no deja incrustar
+        su reproductor: sus canales ya salen en la lista, con un botón que abre su web.</p>
+      <div class="dlg-actions add-group-actions">
+        <button class="btn" type="button" id="addAtres">Añadir los canales de Atresmedia (6)</button>
+      </div>
+    </fieldset>
     <label>Tipo
       <select id="addKind"><option value="tv">Televisión</option><option value="radio">Radio</option></select>
     </label>
@@ -156,8 +165,9 @@
       <label>Origin <input id="addOrigin" type="text" placeholder="https://www.ejemplo.com"></label>
       <label>Referer <input id="addReferer" type="text" placeholder="https://www.ejemplo.com/directo/"></label>
     </div>
-    <p class="dlg-hint">El enlace lo pones tú (por ejemplo el que ves en las herramientas del navegador). Los enlaces con
-      permiso temporal caducan y habrá que cambiarlos. Nada de DRM ni geobloqueos: solo se envían las cabeceras que indiques.</p>
+    <p class="dlg-hint">El enlace lo pones tú (por ejemplo el que ves en las herramientas del navegador, o el que saca
+      <code>tools/capturar-directo.js</code> de lo que ya estás viendo). Los enlaces con permiso temporal caducan y habrá
+      que cambiarlos. Nada de DRM ni geobloqueos: solo se envían las cabeceras que indiques.</p>
     <p class="dlg-msg" id="addMsg" role="status"></p>
     <div class="dlg-actions">
       <button class="btn primary" type="submit">Añadir</button>

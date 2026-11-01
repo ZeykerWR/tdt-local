@@ -22,8 +22,8 @@ class PayloadTests(unittest.TestCase):
         self.assertIsNone(payload(Config()))
         self.assertIsNone(payload(config(ad_enabled=False)))
 
-    def test_it_needs_the_watcher(self):
-        self.assertIsNone(payload(config(scte_enabled=False)))
+    def test_it_does_not_need_the_watcher(self):  # the bridge script of Atresplayer's player also reports breaks
+        self.assertIsNotNone(payload(config(scte_enabled=False)))
 
     def test_muting_is_enough_to_react(self):
         sent = payload(config())
@@ -33,7 +33,8 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual(sent["min_seconds"], 10)
 
     def test_with_nothing_to_do_nothing_is_sent(self):
-        self.assertIsNone(payload(config(ad_audio="keep")))
+        self.assertIsNone(payload(config(ad_audio="keep", ad_flag=False)))
+        self.assertEqual(payload(config(ad_audio="keep"))["flag"], True)  # the notice alone is something to do
 
     def test_a_screen_action_without_its_target_is_dropped(self):
         self.assertEqual(payload(config(ad_screen="channel", ad_channel=""))["screen"], "keep")
@@ -144,13 +145,13 @@ class RouteTests(ServerCase):
         return self.request("GET", "/")[1]["content-security-policy"]
 
     def test_the_csp_lets_in_only_the_chosen_web(self):
-        self.assertNotIn("frame-src https://www.youtube-nocookie.com https://www.youtube.com ", self.csp())
-        self.assertIn("frame-src https://www.youtube-nocookie.com https://www.youtube.com;", self.csp())
+        base = "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.atresplayer.com"
+        self.assertIn(base + ";", self.csp())
         self.post_json(
             "/api/settings",
             {"ad_enabled": True, "ad_screen": "web", "ad_web_url": "https://noticias.example/portada"},
         )
-        self.assertIn("https://www.youtube.com https://noticias.example;", self.csp())
+        self.assertIn("https://www.atresplayer.com https://noticias.example;", self.csp())
         self.post_json("/api/settings", {"ad_screen": "keep"})
         self.assertNotIn("noticias.example", self.csp())
 
@@ -193,6 +194,49 @@ class RouteTests(ServerCase):
         self.assertFalse(bad["ok"])
         self.assertIn("X-Frame-Options", bad["error"])
         self.assertIn("404", gone["error"])
+
+    def test_a_channel_with_only_a_web_can_be_added_and_is_listed(self):
+        web = "https://www.mediasetinfinity.es/directo/telecinco/"
+        status, data = self.post_json("/api/custom", {"name": "Telecinco", "kind": "tv", "sources": [], "web": web})
+        self.assertEqual((status, data["ok"], data["id"]), (200, True, "custom-telecinco"))
+        channel = next(c for c in self.get_json("/api/channels")[1]["channels"] if c["id"] == "custom-telecinco")
+        self.assertEqual((channel["sources"], channel["web"], channel["custom"]), ([], web, True))
+        status, data = self.post_json("/api/custom", {"name": "Nada", "sources": []})
+        self.assertEqual(status, 400)
+
+    def test_a_channel_with_a_stream_and_an_embedded_player_is_one_channel(self):
+        stream = "https://cdn.example/lasexta/master.m3u8"
+        player = "https://www.atresplayer.com/embed/live/lasexta/"
+        web = "https://www.atresplayer.com/directos/lasexta/"
+        first = self.post_json("/api/custom", {"name": "La Sexta", "sources": [stream], "merge": True})[1]
+        self.assertEqual((first["ok"], first["merged"], first["id"]), (True, False, "custom-la-sexta"))
+        second = self.post_json("/api/custom", {"name": " la sexta ", "sources": [player], "web": web, "merge": True})[
+            1
+        ]
+        self.assertEqual(
+            (second["id"], second["merged"]), ("custom-la-sexta", True)
+        )  # same name: more sources, not a copy
+        own = [c for c in self.get_json("/api/channels")[1]["channels"] if c["custom"]]
+        self.assertEqual(len(own), 1)
+        self.assertEqual([s["u"] for s in own[0]["sources"]], [stream, player])
+        self.assertEqual(own[0]["web"], web)
+        # the same link again changes nothing, and without `merge` a copy is still made
+        self.post_json("/api/custom", {"name": "La Sexta", "sources": [player], "merge": True})
+        self.assertEqual(len(self.app.store.custom[0]["sources"]), 2)
+        copy = self.post_json("/api/custom", {"name": "La Sexta", "sources": [stream]})[1]
+        self.assertEqual(copy["id"], "custom-la-sexta-2")
+
+    def test_merging_keeps_the_headers_and_does_not_mix_tv_with_radio(self):
+        headers = {"Origin": "https://o.example"}
+        self.post_json(
+            "/api/custom", {"name": "Canal", "sources": ["https://a.example/a.m3u8"], "headers": headers, "merge": True}
+        )
+        self.post_json("/api/custom", {"name": "Canal", "sources": ["https://b.example/b.m3u8"], "merge": True})
+        self.assertEqual(self.app.store.custom[0]["headers"], headers)
+        radio = self.post_json(
+            "/api/custom", {"name": "Canal", "kind": "radio", "sources": ["https://c.example/c.mp3"], "merge": True}
+        )[1]
+        self.assertEqual((radio["merged"], len(self.app.store.custom)), (False, 2))
 
     def test_the_web_check_refuses_nonsense(self):
         self.assertIn("dirección", self.post_json("/api/settings/test/web", {"url": ""})[1]["error"])

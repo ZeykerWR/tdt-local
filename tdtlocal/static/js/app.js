@@ -1,8 +1,8 @@
 // TDT local: page controller (channel list, player deck, multi-view, subtitles and data loading).
-import { adsEvents, adsTuned, adsUserVolume, fragSeen, initAds, setAds } from './adbreak.js';
+import { adsEvents, adsExternal, adsTuned, adsUserVolume, fragSeen, initAds, setAds } from './adbreak.js';
 import { api, postJson } from './api.js';
 import { initAssistant, isAssistantOpen, toggleAssist } from './assistant.js';
-import { initDialogs } from './dialogs.js';
+import { initDialogs, removeOwn } from './dialogs.js';
 import { initSettings } from './settings.js';
 import { onWake } from './audio.js';
 import { initScte, openScte, syncScte } from './scte.js';
@@ -15,6 +15,7 @@ import { categoriesOf, filterChannels, isListed } from './lib/filters.js';
 import { ago } from './lib/format.js';
 import { fillAssignments, nextRotation } from './lib/mosaic.js';
 import { canPlayFormat } from './lib/plan.js';
+import { atresEmbed } from './lib/embeds.js';
 import { ytEmbed } from './lib/youtube.js';
 import { isGuideOpen, syncGuide, toggleGuide } from './guide.js';
 import { store } from './store.js';
@@ -89,8 +90,9 @@ function makeRow(c, i) {
   b.append(logo);
   const txt = el('span', 'txt');
   txt.append(el('span', 'name', c.name));
-  const youtubeOnly = c.sources.length && c.sources.every((s) => ytEmbed(s.u));
-  const sub = [c.group || (state.cat ? '' : c.category), c.sources.length ? '' : 'solo web', youtubeOnly ? 'YouTube' : '']
+  const embedName = (u) => (ytEmbed(u) ? 'YouTube' : atresEmbed(u) ? 'Atresplayer' : '');
+  const embedOnly = c.sources.length && c.sources.every((s) => embedName(s.u)) ? embedName(c.sources[0].u) : '';
+  const sub = [c.group || (state.cat ? '' : c.category), c.sources.length ? '' : 'solo web', embedOnly]
     .filter(Boolean).join(' · ');
   if (sub) txt.append(el('span', 'sub', sub));
   txt.append(el('span', 'epg', channelEpgLine(c)));
@@ -105,6 +107,15 @@ function makeRow(c, i) {
   favGlyph(f, state.favs.has(c.id), c.name);
   f.addEventListener('click', () => toggleFav(c));
   li.append(b, f);
+  if (c.custom) { // the ones the user added can be removed from here
+    const d = el('button', 'del', '✕');
+    d.type = 'button';
+    d.title = 'Quitar este canal de tus canales propios';
+    d.setAttribute('aria-label', 'Quitar canal propio: ' + c.name);
+    d.addEventListener('click', () => removeOwn(c));
+    li.classList.add('own');
+    li.append(d);
+  }
   return li;
 }
 
@@ -212,6 +223,43 @@ function tune(c) {
   updateDeck();
 }
 
+// Ad-break reaction that switches channel, single view: the channel goes to another tile and the original keeps playing,
+// out of sight and silent, so that its "break is over" is still seen and it need not be loaded again (it would start with
+// another ad). The channel shown is not remembered as the last one watched.
+function park(original, c) {
+  if (state.mode !== 'single') return null;
+  const spare = state.tiles.find((t) => t !== original);
+  if (!spare) return null;
+  const was = spare.c;
+  parkedTile = original;
+  spare.play(c);
+  state.focus = spare.i;
+  applyLayout();
+  applyAudio();
+  osd(numOf(c) || '', c.name);
+  markCurrent(true);
+  updateDeck();
+  return { spare, was };
+}
+
+// `quiet`: the user chose another channel meanwhile, so it stays on screen and only the original is let go
+function unpark(parked, original, quiet) {
+  parkedTile = null;
+  if (quiet || state.mode !== 'single') {
+    if (quiet) original.stop();
+    applyLayout();
+    return;
+  }
+  parked.spare.stop();
+  parked.spare.c = parked.was;
+  state.focus = original.i;
+  applyLayout();
+  applyAudio();
+  if (original.c) osd(numOf(original.c) || '', original.c.name);
+  markCurrent(true);
+  updateDeck();
+}
+
 function step(delta) {
   if (!state.view.length) return;
   const c = cur();
@@ -223,9 +271,14 @@ function step(delta) {
 /* ------------------------------------------------------------ multi-view */
 const saveMulti = () => store.set('multi', { ids: state.tiles.map((t) => (t.c ? t.c.id : null)) });
 
+let parkedTile = null; // the tile an ad-break reaction left playing in the background, out of sight
+
 function applyLayout() {
   tilesEl.className = 'tiles ' + (state.mode === 'multi' ? 'multi ' + state.layout : 'single');
-  state.tiles.forEach((t) => t.root.classList.toggle('main', t.i === state.focus));
+  state.tiles.forEach((t) => {
+    t.root.classList.toggle('main', t.i === state.focus);
+    t.root.classList.toggle('parked', t === parkedTile);
+  });
 }
 
 function applyAudio() { state.tiles.forEach((t) => t.syncAudio()); }
@@ -684,6 +737,7 @@ const host = {
   spoke: checkAlerts,
   fragSeen,
   adVolume: adsUserVolume,
+  adExternal: adsExternal,
   audioFx,
 };
 
@@ -693,7 +747,8 @@ bindEvents();
 initAssistant({ setKind, play, multiWith, toMosaic });
 initDialogs({
   setKind, play, load, footMsg, updateDeck, syncStt, syncAlertUi, saveMulti,
-  clearActive: () => focusTile().clear(),
+  clearChannel: (c) => state.tiles.forEach((t) => { if (t.c && t.c.id === c.id) t.clear(); }),
+  loadEpg,
 });
 initAds({
   focusTile,
@@ -701,6 +756,8 @@ initAds({
   volume: () => state.vol,
   setVolume(v) { state.vol = v; store.set('vol', v); applyAudio(); },
   tune,
+  park,
+  unpark,
   say: (text) => osd('📢', text),
 });
 initScte({

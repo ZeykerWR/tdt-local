@@ -12,6 +12,7 @@ YOUTUBE = re.compile(r"^https?://(?:www\.|m\.)?(?:youtube\.com|youtube-nocookie\
 HTTP_URL = re.compile(r"https?://\S+$")
 CUSTOM_HEADERS = ("Origin", "Referer", "User-Agent")
 MAX_SOURCES = 6
+MAX_EPG_ID = 80
 MAX_HEADER_LEN = 300
 
 
@@ -41,7 +42,8 @@ def _clean_headers(raw: Any) -> dict[str, str]:
 def build_custom_entry(data: Any) -> Channel:
     """Validate user input and return a channel dict.
 
-    Raises :class:`ValueError` (with a message meant for the user) when name or link are missing.
+    Raises :class:`ValueError` (with a message meant for the user) when the name is missing, or there is neither a
+    stream link nor a web page (a channel that can only be watched on its own web has no sources).
     Only ``http(s)`` links are kept, and header values cannot contain line breaks.
     """
     if not isinstance(data, dict):
@@ -49,10 +51,13 @@ def build_custom_entry(data: Any) -> Channel:
     name = str(data.get("name") or "").strip()[:80]
     sources = [u.strip() for u in (data.get("sources") or []) if isinstance(u, str)]
     sources = [u for u in sources if HTTP_URL.match(u)][:MAX_SOURCES]
-    if not name or not sources:
+    web, logo = str(data.get("web") or ""), str(data.get("logo") or "")
+    epg = str(data.get("epg") or "").strip()
+    if len(epg) > MAX_EPG_ID or any(ord(c) < 32 for c in epg):
+        epg = ""
+    if not name or not (sources or HTTP_URL.match(web)):
         raise ValueError("falta el nombre o el enlace")
     kind = "radio" if data.get("kind") == "radio" else "tv"
-    web, logo = str(data.get("web") or ""), str(data.get("logo") or "")
     return {
         "id": str(data.get("id") or "custom-" + slugify(name)),
         "name": name,
@@ -63,7 +68,7 @@ def build_custom_entry(data: Any) -> Channel:
         "fmts": [guess_fmt(u) if kind == "radio" else "" for u in sources],
         "web": web if HTTP_URL.match(web) else "",
         "logo": logo if HTTP_URL.match(logo) else "",
-        "epg": "",
+        "epg": epg,
         "tags": [],
         "custom": True,
         "headers": _clean_headers(data.get("headers")),

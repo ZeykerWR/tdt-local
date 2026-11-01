@@ -7,7 +7,7 @@ import { epgDetail, epgLine, epgOf, progress } from '../../tdtlocal/static/js/li
 import { categoriesOf, filterChannels } from '../../tdtlocal/static/js/lib/filters.js';
 import { ago, dayLabel, hhmm } from '../../tdtlocal/static/js/lib/format.js';
 import { fillAssignments, nextRotation } from '../../tdtlocal/static/js/lib/mosaic.js';
-import { buildPlan, canPlayFormat, usesHls } from '../../tdtlocal/static/js/lib/plan.js';
+import { buildPlan, canPlayFormat, originNote, usesHls } from '../../tdtlocal/static/js/lib/plan.js';
 import { initials, norm, slug } from '../../tdtlocal/static/js/lib/text.js';
 import { ytEmbed } from '../../tdtlocal/static/js/lib/youtube.js';
 
@@ -196,4 +196,32 @@ test('alert words', () => {
   assert.deepEqual(matchingWords('Ha habido un TERREMOTO en Lorca', ['terremoto', 'volcan']), ['terremoto']);
   assert.deepEqual(matchingWords('El Real Madrid gana', ['real madrid']), ['real madrid']);
   assert.deepEqual(matchingWords('nada', []), []);
+});
+
+test('originNote says what the origin answered, and what it usually means', () => {
+  assert.equal(originNote(0), '');
+  assert.match(originNote(492), /HTTP 492: el origen rechaza la petición/);
+  assert.match(originNote(403), /HTTP 403: el origen rechaza/);
+  assert.match(originNote(404), /ha caducado/);
+  assert.match(originNote(503), /fallo del servidor/);
+  assert.equal(originNote(302), ' El origen respondió HTTP 302.');
+});
+
+test('"solo con directo" hides list channels without a stream, but never the ones the user added', () => {
+  const web = ch('web', 'Solo web', { sources: [] });
+  const own = ch('own', 'Telecinco', { sources: [], custom: true });
+  const f = { kind: 'tv', onlyStream: true, hideDown: false, cat: '', grp: '', onlyFav: false, favs: new Set(), query: '' };
+  assert.deepEqual(filterChannels([web, own, ch('a', 'A')], f).map((c) => c.id), ['own', 'a']);
+  assert.deepEqual(filterChannels([web, own], { ...f, onlyStream: false }).map((c) => c.id), ['web', 'own']);
+});
+
+test('buildPlan puts an embedded player after the streams, and never first by itself', () => {
+  const player = 'https://www.atresplayer.com/embed/live/lasexta/';
+  const stream = 'https://cdn.example/lasexta/master.m3u8';
+  const c = ch('lasexta', 'La Sexta', { sources: [{ u: player, ok: null, f: '' }, { u: stream, ok: null, f: '' }] });
+  assert.deepEqual(buildPlan(c).map((s) => s.u), [stream, player]); // the player was first in the list, and goes last
+  assert.deepEqual(buildPlan(c, { pref: { u: player } }).map((s) => s.u), [player, stream]); // unless it is what the user chose
+  assert.deepEqual(buildPlan(c, { onlyUrl: player }).map((s) => s.u), [player]);
+  const down = ch('x', 'X', { sources: [{ u: player, ok: null, f: '' }, { u: stream, ok: false, f: '' }] });
+  assert.deepEqual(buildPlan(down).map((s) => s.u), [stream, player]); // even a stream that failed its last check goes first
 });

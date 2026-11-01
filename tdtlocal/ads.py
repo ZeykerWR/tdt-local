@@ -16,6 +16,7 @@ from .config import Config
 
 HOST = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$|^[0-9a-f:]+$")  # urlsplit lower-cases the host
 SENT = (
+    "ad_flag",
     "ad_audio",
     "ad_lower_percent",
     "ad_screen",
@@ -44,18 +45,19 @@ def web_origin(config: Config) -> str:
 
 
 def payload(config: Config) -> dict[str, Any] | None:
-    """The reaction settings for the page, or ``None`` when there is nothing to react with or to.
+    """The reaction settings for the page, or ``None`` when there is nothing to react with.
 
-    It needs the watcher on (it is what finds the markers) and at least one thing to do.
+    Breaks are found by the watcher (streams) or by the bridge script (Atresplayer's embedded player): the page
+    only gets events from the ones that are on. It needs at least one thing to do.
     """
-    if not (config.ad_enabled and config.scte_enabled):
+    if not config.ad_enabled:
         return None
     out: dict[str, Any] = {name.removeprefix("ad_"): getattr(config, name) for name in SENT}
     if out["screen"] == "channel" and not out["channel"]:
         out["screen"] = "keep"
     if out["screen"] == "web" and not web_origin(config):
         out["screen"] = "keep"
-    if out["audio"] == "keep" and out["screen"] == "keep":
+    if out["audio"] == "keep" and out["screen"] == "keep" and not out["flag"]:
         return None
     return out
 

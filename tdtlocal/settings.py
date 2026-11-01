@@ -20,6 +20,7 @@ from typing import Any
 from .config import (
     DEFAULT_LLM_URL,
     DEFAULT_WHISPER_URL,
+    EPG_EXTRA_SOURCE,
     EPG_SOURCES,
     PROJECT_DIR,
     RADIO_SOURCE,
@@ -187,6 +188,8 @@ FIELDS: tuple[Field, ...] = (
     Field("update_hours", "lists", "float", 6.0, 0.5, 168),
     Field("auto_check", "lists", "bool", False),
     Field("epg_enabled", "lists", "bool", True, affects=("epg",)),
+    Field("epg_extra_enabled", "lists", "bool", False, affects=("epg",)),
+    Field("epg_extra_source", "lists", "url", EPG_EXTRA_SOURCE, max_length=MAX_URL, affects=("epg",)),
     Field("tv_source", "lists", "url", TV_SOURCE, max_length=MAX_URL, affects=("feeds",)),
     Field("radio_source", "lists", "url", RADIO_SOURCE, max_length=MAX_URL, affects=("feeds",)),
     Field("epg_tv_source", "lists", "url", EPG_SOURCES["tv"], max_length=MAX_URL, affects=("epg",)),
@@ -201,6 +204,7 @@ FIELDS: tuple[Field, ...] = (
     Field("scte_keep", "scte", "int", 2000, 100, 50000, affects=("scte",)),
     # what to do while an ad break is on (read by the page)
     Field("ad_enabled", "ads", "bool", False),
+    Field("ad_flag", "ads", "bool", True),
     Field("ad_audio", "ads", "choice", "mute", choices=AD_AUDIO),
     Field("ad_lower_percent", "ads", "int", 25, 0, 90),
     Field("ad_screen", "ads", "choice", "keep", choices=AD_SCREEN),

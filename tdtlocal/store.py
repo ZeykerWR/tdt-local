@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from .config import Config
-from .custom import build_custom_entry, is_youtube
+from .custom import MAX_SOURCES, build_custom_entry, guess_fmt, is_youtube
 from .net import Net
 from .parser import Channel
+from .util import normalize
 
 log = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ class Store:
         self.radio_meta: dict[str, Any] = {"updated": None, "checked": None, "etag": None, "error": None}
         self.radios: list[Channel] = []
         self.custom: list[Channel] = []
-        self.epg: dict[str, dict[str, list[Programme]]] = {"tv": {}, "radio": {}}
+        self.epg: dict[str, dict[str, list[Programme]]] = {"tv": {}, "radio": {}, "extra": {}}
         self.epg_meta: dict[str, Any] = {"checked": None, "updated": None, "error": None, "etag": {}}
         self.status: dict[str, dict] = {}  # stream url -> {ok, ts, ms | err}
         self.health: dict[str, Any] = {"running": False, "done": 0, "total": 0, "finished": None}
@@ -170,6 +171,39 @@ class Store:
         self.rebuild_allowlists()
         self.save_custom()
         return entry["id"]
+
+    def add_or_merge_custom(self, data: dict[str, Any]) -> tuple[str, bool]:
+        """Add a user channel; but if the user already has one with the same name, its links become more sources of it.
+
+        Returns ``(id, merged)``. A channel can then have a stream and a player that is only embedded: the page tries
+        them in turn. Raises :class:`ValueError` on bad input.
+        """
+        entry = build_custom_entry({k: v for k, v in (data or {}).items() if k != "id"})
+        with self.lock:
+            same = next(
+                (
+                    c
+                    for c in self.custom
+                    if c["kind"] == entry["kind"] and normalize(c["name"]) == normalize(entry["name"])
+                ),
+                None,
+            )
+            if same is None:
+                merged = False
+            else:
+                merged = True
+                for url in entry["sources"]:
+                    if url not in same["sources"] and len(same["sources"]) < MAX_SOURCES:
+                        same["sources"].append(url)
+                same["fmts"] = [guess_fmt(u) if same["kind"] == "radio" else "" for u in same["sources"]]
+                for key in ("web", "logo", "epg"):
+                    same[key] = same[key] or entry[key]
+                same["headers"] = same["headers"] or entry["headers"]
+        if merged and same is not None:
+            self.rebuild_allowlists()
+            self.save_custom()
+            return same["id"], True
+        return self.add_custom(data), False
 
     def delete_custom(self, cid: str) -> bool:
         with self.lock:

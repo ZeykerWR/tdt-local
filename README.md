@@ -54,6 +54,14 @@ comprobado en condiciones simuladas o con pocos casos reales. **📋 Pendiente**
 | Igualador de volumen (sube lo bajo y baja lo alto hasta un nivel) | 🧪 Probado poco · con señales sintéticas |
 | Ecualizador de diez bandas con preajustes | 🧪 Probado poco · con señales sintéticas |
 | Ajustes de sonido globales y propios de cada canal | ✅ Hecho |
+| Atresmedia con un clic (Antena 3, La Sexta, Neox, Nova, Mega, Atreseries) con el reproductor oficial de Atresplayer incrustado | 🧪 Probado poco · se ha visto emitir La Sexta; los otros cinco cargan su reproductor |
+| Aviso fijo «PUBLICIDAD» sobre la imagen mientras dura una pausa (con stream, o con el puente en Atresplayer) | 🧪 Probado poco · con un directo simulado y con mensajes simulados del puente |
+| Igualador de volumen y ecualizador también en el reproductor de Atresplayer (con el puente como extensión) | 🧪 Probado poco · con un audio de prueba dentro de un iframe, no con el reproductor real ni como extensión cargada |
+| Puente con el reproductor de Atresplayer (`tools/puente-atresplayer`): leer su aviso «Publicidad» y silenciarlo | 🧪 Probado poco · la detección, con el reproductor real y la extensión cargada en el navegador del autor; no con Tampermonkey. Guía: [LEEME](tools/puente-atresplayer/LEEME.md) |
+| Guía (programa en emisión y siguiente) e iconos de los canales de Atresmedia, desde una guía comunitaria | 🧪 Probado poco · se ha visto la guía de los seis canales y sus iconos; depende de un archivo de terceros |
+| Quitar un canal propio desde su fila de la lista o desde el botón bajo la imagen | ✅ Hecho |
+| Mediaset dentro de TDT local | 📋 Pendiente · su reproductor prohíbe incrustarse; hoy sus canales abren su web |
+| Sacar el enlace de un directo desde tu navegador y añadirlo como canal propio (`tools/capturar-directo.js`) | 🧪 Probado poco · con una página de ejemplo, no con la web real de ninguna cadena |
 | Ventana propia en lugar de abrir el navegador | 📋 Pendiente |
 | Controles propios del reproductor: calidad, pistas de audio, estadísticas, «volver al directo», retroceso | 📋 Pendiente |
 | Reproductor ampliable con plugins (el sonido y la reacción a anuncios serían los primeros) | 📋 Pendiente |
@@ -133,7 +141,39 @@ conexión para descargar las listas; después se usa la última copia guardada e
   oficial incrustado, también en el mosaico. No pasan por el proxy.
 - **Canales propios:** «Añadir canal» guarda un enlace que pegues tú (m3u8, mp3/aac o YouTube) en
   `data/custom.json`, con cabeceras `Origin`/`Referer` opcionales que el proxy envía con la lista y
-  con cada segmento. Hay un preset para Atresplayer. No se salta DRM ni geobloqueos: solo cabeceras.
+  con cada segmento. No se salta DRM ni geobloqueos: solo cabeceras. Para no copiar el enlace a mano hay un
+  [fragmento para tu navegador](#sacar-el-enlace-de-un-directo-desde-tu-navegador).
+- **Atresmedia con un clic:** «Añadir canal» tiene un botón que añade Antena 3, La Sexta, Neox, Nova, Mega y Atreseries
+  con el reproductor oficial incrustable de Atresplayer (`https://www.atresplayer.com/embed/live/<canal>/`), igual que los
+  de YouTube: se ve **su** reproductor, con sus anuncios y su aviso de cookies, y hay que pulsar «Directo». No pasa por el
+  proxy, así que no hay subtítulos, marcas de anuncios ni igualador de sonido. Para que
+  TDT local sepa cuándo hay publicidad y pueda silenciarlo (imprescindible en multivisión, donde solo debe sonar una
+  casilla) hace falta el [script del puente](#publicidad-en-el-reproductor-de-atresplayer).
+  Los ya añadidos no se repiten, y los canales propios se ven siempre, aunque esté marcado «Solo con directo».
+
+  **Guía e iconos:** TDTChannels no incluye los canales de Atresmedia ni su guía, así que estos canales traen su propio
+  icono y su identificador en una **guía comunitaria** (XMLTV, `EPG_dobleM`, de David Muma). Al pulsar el botón se activa
+  la **guía extra** (Ajustes ▸ Listas y guía): solo lee de ese archivo, que pesa unos 35 MB, los canales tuyos que lo
+  necesitan, y lo mira con su ETag unas pocas veces al día. Con eso salen el programa en emisión y el siguiente, la barra
+  de progreso y la guía completa del canal, como en los demás. Se puede desactivar, o cambiar de fuente, en los ajustes. Si
+  ya tenías esos canales añadidos de antes, vuelve a pulsar el botón para que reciban la guía y el icono.
+
+  **Un canal, varias fuentes:** si ya tienes un canal propio con el mismo nombre (por ejemplo «La Sexta» con un enlace de
+  stream), el reproductor de Atresplayer se añade como **otra fuente suya** en vez de crear un canal repetido, y lo mismo al
+  pegar un enlace con el nombre de un canal que ya tienes. Al abrirlo se prueba primero el stream (con proxy: subtítulos,
+  marcas de anuncios, igualador de sonido…) y, si no responde (por ejemplo, un enlace caducado), se pasa solo al reproductor
+  de Atresplayer, que va siempre al final y nunca se queda como favorito. Con los botones numerados bajo el nombre del
+  canal puedes elegir la fuente a mano.
+  Para otro canal de Atresplayer, pega a mano `https://www.atresplayer.com/embed/live/<canal>/`.
+- **Mediaset:** sus canales (Telecinco, Cuatro, FDF, Divinity, Energy, Be Mad y Boing) salen en la lista como «solo web»,
+  con un botón que abre su página. Mediaset Infinity prohíbe que su reproductor se muestre dentro de otras páginas
+  (`frame-ancestors`) y eso se respeta; si su reproductor da «Se ha producido un error · DAI», suele ser un bloqueador de
+  anuncios (por ejemplo los escudos de Brave) cortando su módulo de publicidad.
+- **Quitar un canal propio:** cada canal propio tiene una ✕ a la derecha de su fila (y el botón «Quitar canal» bajo la
+  imagen, que sirve para el canal activo). Pide confirmación y, si el canal estaba en una casilla, la vacía. Los enlaces directos `.m3u8`
+  de Atresplayer llevan un permiso **atado a la IP** desde la que se sacaron: si el navegador con el que se copian sale
+  por otra IP que TDT local (por ejemplo, con una VPN), el servidor acepta la lista pero rechaza los segmentos (HTTP 492).
+  Hay que sacar el enlace con un navegador que salga a internet igual que TDT local.
 - **Asistente de IA** (`Ctrl+K`): órdenes como «pon La 2» o «pon La 2, TRECE y El Toro en
   multivisión rotando cada 30 s» se resuelven al instante en el navegador; el resto («hay fútbol
   ahora») va a tu modelo local, que solo recibe unas decenas de canales preseleccionados y no puede
@@ -175,8 +215,9 @@ El botón **Ajustes** (abajo, en el panel de canales) abre la configuración. To
   `whisper-server`, dirección del servidor, arranque automático, hilos y minutos de inactividad. Incluye un
   catálogo para **descargar modelos** de Whisper con progreso, cancelación y verificación SHA-256, y un botón
   «Comprobar» que dice qué falta (ffmpeg, el programa, el modelo, el servidor).
-- **Listas y guía:** cada cuántas horas se actualizan, comprobar los streams tras actualizar, guía de programación
-  y, en «avanzado», las cuatro direcciones de origen.
+- **Listas y guía:** cada cuántas horas se actualizan, comprobar los streams tras actualizar, guía de programación,
+  la **guía extra** para tus canales propios sin guía (desactivada hasta que añades los de Atresmedia) y, en «avanzado», las
+  direcciones de origen (listas, guías y guía extra).
 
 Los ajustes solo se pueden cambiar desde el propio equipo (aunque uses `--lan`): `whisper-server` es un programa
 que se ejecuta y no debe poder elegirlo cualquiera de tu red.
@@ -264,6 +305,25 @@ Una marca solo vive unos segundos en la lista de reproducción, así que una
 exploración cada minuto puede perder pausas cortas; lo que ves en pantalla se analiza siempre. Que un canal no
 muestre marcas no prueba que no las use: muchas cadenas insertan los anuncios en el servidor y no dejan rastro.
 
+## Sacar el enlace de un directo desde tu navegador
+
+Para un canal propio hay que pegar el enlace `.m3u8` del directo. `tools/capturar-directo.js` lo saca por ti **de lo que tu
+navegador ya está reproduciendo**:
+
+1. Abre la página del directo (por ejemplo la de laSexta en atresplayer.com), acepta o rechaza las cookies como prefieras
+   y deja que el vídeo empiece.
+2. Pulsa F12, abre la pestaña **Consola**, pega todo el contenido de `tools/capturar-directo.js` y pulsa Intro (si el
+   navegador lo pide, escribe antes `allow pasting`). Si TDT local no está en el puerto 8788, cambia `PUERTO` al principio.
+3. Se abre una pestaña de TDT local con el diálogo **Añadir canal** relleno (nombre, enlace y, en Atresplayer, las
+   cabeceras). Revísalo y pulsa **Añadir**. El enlace también queda copiado al portapapeles.
+
+Qué hace y qué no: lee las listas `.m3u8` que la propia página ya ha pedido (lo mismo que se ve en la pestaña *Red* de las
+herramientas del navegador) y elige la más probable; no hace ninguna petición a la web, no se salta registros, DRM ni
+geobloqueos, y no funciona con lo que el navegador no esté reproduciendo. Los enlaces suelen llevar un permiso temporal
+y **caducan**: cuando el canal deje de verse, repite el proceso. El enlace con el que se abre TDT local lleva todo en el
+fragmento (`#…`), que el navegador no envía a ningún servidor, y la página lo borra de la barra de direcciones al leerlo.
+Solo rellena el formulario: no añade nada hasta que pulsas el botón.
+
 ## Sonido
 
 El botón **Sonido** abre un diálogo con dos herramientas, que se pueden usar a la vez:
@@ -284,22 +344,83 @@ que bajarlo no hace que el igualador lo suba otra vez. Funciona también con la 
 se puede procesar (va en un iframe ajeno); el navegador solo permite procesar audio tras un primer clic o tecla en la
 página; y como mide en directo y sin mirar adelante, es un control aproximado, no una normalización EBU R128 estricta.
 
+**El sonido del reproductor de Atresplayer** tampoco se puede tocar desde fuera (otro origen), pero con el
+[puente](#publicidad-en-el-reproductor-de-atresplayer) **instalado como extensión** (la carpeta entera
+`tools/puente-atresplayer`, que lleva `audio-chain.js`) sí: TDT local le manda los ajustes del canal (igualador de
+volumen y ecualizador, globales o propios) y el puente aplica la misma cadena **dentro** del reproductor, sobre su
+`<video>`; el diálogo «Sonido» muestra lo que oye y corrige. El volumen y el silencio funcionan igual que antes. Con el
+script pegado solo en Tampermonkey o en la consola no hay igualador ni ecualizador (solo silencia y avisa de la
+publicidad). `audio-chain.js` se genera a partir del código de la página con `python scripts/build_bridge.py`, y una
+prueba falla si se queda desfasado.
+
 ## Durante la publicidad
 
-Con la vigilancia de marcas activa, **Ajustes ▸ Durante la publicidad** permite que la página reaccione cuando el canal
-que estás viendo entra en una pausa de anuncios. Solo actúa si el canal envía la marca; en la práctica son sobre todo
-canales internacionales.
+**Ajustes ▸ Durante la publicidad** permite que la página reaccione cuando el canal que estás viendo entra en una pausa
+de anuncios. Hay dos formas de enterarse: con un canal con stream, la vigilancia de marcas (solo actúa si el canal envía
+la marca SCTE-35; La Sexta, por ejemplo, la envía); y con el reproductor incrustado de Atresmedia, el
+[script del puente](#publicidad-en-el-reproductor-de-atresplayer).
+
+- **Aviso fijo:** un rótulo rojo «PUBLICIDAD» sobre la imagen mientras dura la pausa (se puede desactivar).
 
 - **Con el sonido:** no tocarlo, silenciarlo o bajarlo a un porcentaje del volumen que tengas.
 - **Con la imagen:** dejarla, cambiar a otro canal (por nombre o identificador) o mostrar una web sobre la imagen.
   Algunas webs no permiten que se muestren dentro de otra página: el botón **Comprobar** de los ajustes lo avisa. Solo se
   permite esa dirección en la política de seguridad de la página.
 - **Cuándo termina:** al llegar la marca de fin de pausa, o cuando pasa la duración que dice la marca (más 3 s). Si la
-  marca no dice cuánto dura, se supone el tiempo que indiques (120 s por defecto). Al cambiar de canal ya no se ve la
-  señal del original, así que allí manda siempre el tiempo.
+  marca no dice cuánto dura, se supone el tiempo que indiques (120 s por defecto). Al cambiar de canal, en vista simple el
+  canal original **sigue en segundo plano** (en otra casilla, fuera de la vista y silenciado): así se sigue viendo cuándo
+  acaba la pausa, se vuelve a él al instante y no hay que cargarlo otra vez (el reproductor de Atresplayer, al cargarse,
+  empieza siempre con un anuncio y volvería a provocar otro cambio). En multivisión se cambia la propia casilla y se vuelve
+  por tiempo; para no entrar en bucle, un anuncio que aparece en los 90 s siguientes a volver a cargar un canal no provoca
+  otro cambio.
 - **Pausas cortas:** se ignoran las que dicen durar menos de unos segundos (10 por defecto).
+- **El anuncio de arranque:** en el reproductor de Atresplayer, el anuncio que sale al pulsar «Directo» (o cuando el
+  reproductor se reinicia) llega sin programa antes. Ese anuncio solo silencia y muestra el rótulo; **no cambia de canal**,
+  porque dura unos segundos y, si el reproductor se reinicia al volver, provocaría un bucle (pulsar «Directo», anuncio,
+  cambio de canal, volver, «Directo»…). Se considera de arranque el que llega con menos de 20 s de programa seguidos
+  antes, y para saberlo el puente cuenta si el reproductor está emitiendo. Las pausas que llegan después de 20 s o más de
+  programa sí cambian de canal.
 - **Si tocas algo durante la pausa** (el volumen o el canal): puedes elegir *respetar lo que hagas*, de modo que no se
   deshaga nada más, o *dejarlo todo como estaba* al terminar la pausa (volumen anterior y canal original).
+
+### Publicidad en el reproductor de Atresplayer
+
+> **La guía completa de la extensión** (qué hace y qué no, instalación paso a paso, cómo comprobarla, problemas
+> frecuentes y cómo funciona) está en [tools/puente-atresplayer/LEEME.md](tools/puente-atresplayer/LEEME.md). Lo que sigue
+> es el resumen.
+
+El reproductor incrustado de Atresplayer está en otro origen y el navegador no deja que TDT local vea lo que pasa dentro; el
+reproductor tampoco avisa al exterior. Lo que sí hay dentro es el aviso «Publicidad» que te enseña a ti. Para que TDT local
+se entere hay que poner en marcha `tools/puente-atresplayer` en **tu** navegador: se ejecuta dentro del reproductor, lee ese
+aviso y se lo cuenta a TDT local con un mensaje. Con eso TDT local muestra su aviso fijo, cambia de canal o abre una web, y
+puede **silenciar el sonido** del reproductor mientras dura la pausa (y con la tecla `M`), también en multivisión: la casilla
+activa suena y las demás se silencian, y al rotar el audio el puente lo sigue. Sin el puente, en multivisión los
+reproductores de Atresplayer sonarían a la vez en cuanto pulsas «Directo» en cada uno, y la casilla lo avisa. No hace
+peticiones, no salta ni toca la publicidad y solo habla con la página de TDT local que lo incrusta (en Chrome, Edge y Brave
+comprueba que es `127.0.0.1` o `localhost`).
+
+**Cómo ponerlo en marcha**, en el navegador donde abres TDT local (hay tres formas; la primera no necesita gestor de scripts):
+
+1. **Como extensión** (recomendado): la carpeta `tools/puente-atresplayer` es una extensión sin permisos. En
+   `brave://extensions`, `chrome://extensions` o `edge://extensions` activa el **Modo de desarrollador**, pulsa **Cargar
+   descomprimida** y elige esa carpeta. Chrome avisa al arrancar de que hay extensiones sin publicar.
+2. **Con Tampermonkey o Violentmonkey:** crea un script nuevo y pega `tools/puente-atresplayer/puente.user.js`. En las
+   versiones recientes de Chrome, Edge y Brave estas extensiones piden además activar **«Permitir scripts de usuario»** en
+   sus detalles (y, según la versión, el modo de desarrollador); sin eso el script no se ejecuta.
+3. **Prueba suelta, sin instalar nada:** con TDT local abierto en un canal de Atresmedia, F12 ▸ Consola, elige en el
+   desplegable «top» el contexto de `atresplayer.com` y pega el archivo. Vale hasta que recargues la página.
+
+**Cómo saber que funciona:** al abrir un canal de Atresmedia, la línea bajo el nombre del canal dice «puente activo»; si a
+los 6 segundos no ha dado señales, dice «puente no detectado». El script escribe en la consola (F12) mensajes que empiezan
+por «[TDT puente]». Pegarlo en la consola de la página de TDT local, o de la pestaña suelta del reproductor, solo comprueba
+que el código se ejecuta: no lo deja conectado a la casilla.
+
+**Qué mira el puente:** dos textos del propio reproductor, visibles en la parte de arriba: el corto «Publicidad» (el anuncio que
+sale al pulsar «Directo», unos 25 s, comprobado sobre el reproductor real) y el aviso «El canal que estás viendo en directo se
+encuentra en estos momentos en publicidad» de las pausas del directo (visto en una captura, no comprobado en directo por el
+programa). Los dos desaparecen al terminar. Si el reproductor usa otro texto, el puente no lo verá: se añade a la lista
+`FRASES` del script, y la consola dice qué texto ha visto en cada pausa («[TDT puente] publicidad: empieza (…)»). «Bajar el volumen» silencia en vez de bajar, porque el puente solo
+sabe silenciar.
 
 La reacción se calcula para el momento en que la pausa *se ve*, no cuando se encuentra la marca, que llega a la lista
 unos segundos antes. Si abres el canal con la pausa ya empezada, se une a lo que queda. El canal cambiado no se guarda
@@ -364,6 +485,10 @@ models/              (no se versiona) modelo de Whisper
 - Las listas de canales y las guías son de [TDTChannels](https://github.com/LaQuay/TDTChannels)
   (Apache-2.0; las guías las sirven tdtchannels.com y [Onda Channels](https://www.ondachannels.com/) y están sujetas a su
   [aviso legal](https://www.tdtchannels.com/aviso-legal/)). Sin su trabajo esto no existiría.
+- La **guía extra** de los canales de Atresmedia (programación e iconos) viene de
+  [EPG_dobleM](https://github.com/davidmuma/EPG_dobleM) y [picons_dobleM](https://github.com/davidmuma/picons_dobleM),
+  de David Muma: archivos de terceros, que no se incluyen y que se descargan solo si activas esa guía. Comprueba sus
+  condiciones de uso antes de depender de ellos.
 - [hls.js](https://github.com/video-dev/hls.js) (Apache-2.0, © Dailymotion) reproduce el HLS en el navegador.
 - Opcionales y no incluidos: [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT),
   [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT) y [FFmpeg](https://ffmpeg.org) (LGPL/GPL).

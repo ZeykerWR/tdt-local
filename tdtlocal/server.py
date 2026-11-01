@@ -37,7 +37,7 @@ CONTENT_TYPES = {
 CSP = (
     "default-src 'self'; img-src 'self' data:; media-src 'self' blob: data:; connect-src 'self'; "
     "worker-src 'self' blob:; script-src 'self'; style-src 'self'; base-uri 'none'; "
-    "frame-src https://www.youtube-nocookie.com https://www.youtube.com{web}; "
+    "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://www.atresplayer.com{web}; "
     "form-action 'none'; frame-ancestors 'none'"
 )
 MAX_BODY = 16384
@@ -208,8 +208,16 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/ai":
             self._ask_ai()
         elif path == "/api/custom":
+            body = self._body()
             try:
-                self._json(200, {"ok": True, "id": app.store.add_custom(self._body())})
+                if body.get("merge") is True:  # a channel with that name is made richer instead of repeated
+                    cid, merged = app.store.add_or_merge_custom(body)
+                    app.epg.refresh_soon()  # its guide may come from the extra source
+                    self._json(200, {"ok": True, "id": cid, "merged": merged})
+                else:
+                    cid = app.store.add_custom(body)
+                    app.epg.refresh_soon()
+                    self._json(200, {"ok": True, "id": cid})
             except ValueError as exc:
                 self._json(400, {"ok": False, "error": str(exc)})
         elif path == "/api/quit":

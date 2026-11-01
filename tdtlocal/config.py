@@ -18,6 +18,10 @@ EPG_SOURCES = {
     "radio": "https://www.ondachannels.com/epg/RADIO.xml.gz",
 }
 
+# A community guide (XMLTV) with channels the TDTChannels one lacks, such as Atresmedia's. Only the channels the user
+# added that need it are read from it, and only if the user turns it on.
+EPG_EXTRA_SOURCE = "https://raw.githubusercontent.com/davidmuma/EPG_dobleM/master/guiatv.xml"
+
 DEFAULT_PORT = 8788
 DEFAULT_LLM_URL = "http://127.0.0.1:8080/v1"
 DEFAULT_WHISPER_URL = "http://127.0.0.1:8178"
@@ -40,6 +44,8 @@ class Config:
     radio_source: str = RADIO_SOURCE
     epg_enabled: bool = True
     epg_sources: dict[str, str] = field(default_factory=lambda: dict(EPG_SOURCES))
+    epg_extra_enabled: bool = False  # also read the programme of own channels from epg_extra_source
+    epg_extra_source: str = EPG_EXTRA_SOURCE
 
     data_dir: Path = field(default_factory=lambda: default_data_dir(PROJECT_DIR))
     models_dir: Path = field(default_factory=lambda: default_models_dir(PROJECT_DIR))
@@ -75,6 +81,7 @@ class Config:
 
     # what the page does while an ad break is on (see static/js/adbreak.js); needs scte_enabled
     ad_enabled: bool = False
+    ad_flag: bool = True  # a fixed "PUBLICIDAD" notice over the picture while the break lasts
     ad_audio: str = "mute"  # "keep", "mute" or "lower" (to ad_lower_percent of the volume)
     ad_lower_percent: int = 25
     ad_screen: str = "keep"  # "keep", "channel" (switch to ad_channel) or "web" (show ad_web_url over the picture)
