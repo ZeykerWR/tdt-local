@@ -3,7 +3,42 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); el proyecto sigue
 [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [1.2.0] — 2026-11-01
+
+Primer prototipo de la aplicación de escritorio con ventana propia y plugins, más U7D («últimos 7 días») y el Registro.
+
+### Funciones
+- **Aplicación de escritorio con Electrón y plugins** (prototipo en `desktop/`; **solo desde el código**, los instaladores de esta versión siguen siendo los de siempre). Una ventana propia con Chromium integrado que arranca el servidor de Python, un icono en la bandeja y un sistema de plugins: carpetas con un `manifest.json` (el formato `content_scripts` de las extensiones de Chrome) cuyos scripts se ejecutan en las páginas que declaran. Todos empiezan desactivados y se rechazan los que piden permisos, `background` o patrones demasiado anchos. Se gestionan en Ajustes ▸ Plugins, que solo existe en esta app. Es la misma base de código que el modo navegador, que sigue funcionando igual. Detalle y límites en [docs/DESKTOP.md](docs/DESKTOP.md).
+- **U7D («últimos 7 días»)**: un tercer botón junto a Televisión y Radio con los canales de RTVE que tienen
+  grabaciones (La 1, La 2, 24 Horas, Teledeporte y Clan). Dentro de cada uno, lo emitido en la última semana del más
+  reciente al más antiguo, con miniatura y buscador; un programa se reproduce como un canal (vista simple o casilla
+  de la multivisión). Rutas `/api/u7d` y `/api/u7d/play`; el listado se guarda diez minutos. Los programas con DRM se
+  rechazan con un mensaje claro. Las miniaturas pasan por la caché de logos con su propio tope de 3 MB. Idea y primera
+  versión de m4rt0s (su rama `feat/u7d`); aquí se ha reducido a RTVE porque la parte de Atresplayer y Mediaset se
+  apoya en imitar la web de cada cadena.
+- **U7D de Atresmedia en la aplicación de escritorio**: Antena 3, laSexta, Neox, Nova, Mega y Atreseries. Al entrar en
+  uno, una ventana «Explorar Atresplayer» (con sus propios datos de navegación, solo puede ir a `atresplayer.com`)
+  abre la página pública «Emitido en TV» del canal, el plugin nuevo `tools/atresplayer-u7d` lee los programas que
+  muestra y la ventana se cierra sola. El reproductor incrustado de Atresplayer no reproduce estas grabaciones (su
+  petición `player/v1/video/<id>` responde 404), así que cada programa abre su página de Atresplayer en una ventana de
+  la aplicación (con los mismos datos que la de exploración; «Abrir en tu navegador» como alternativa). Atresplayer
+  no reproduce si detecta que sus anuncios no cargan (por ejemplo, con un DNS que los filtra): la reproducción
+  real no está comprobada en el equipo de pruebas. Hace falta activar el plugin. La aplicación comprueba quién envía lo leído y
+  limpia cada campo. Nueva ruta `/api/u7d/covers` (solo miniaturas de `imagenes.atresplayer.com`, hasta 300).
+  El puente de Atresplayer actúa también en `/embed/video/*` (sin probar con anuncios reales).
+- **Registro de la aplicación de escritorio** (Ajustes ▸ Registro): arranque, plugins, ventana de exploración, salida
+  del servidor, errores de la página y de los reproductores de dentro y fallos de red (una vez por dirección y sin
+  parámetros). Se puede filtrar, copiar, guardar en un archivo y abrir su carpeta; también se guarda en
+  `logs/tdt-local.log` (1 MB y un archivo anterior). Oculta claves, tokens y cabeceras de credenciales.
+
+### Correcciones
+- El servidor rechazaba conexiones cuando una página pedía decenas de archivos a la vez: la cola de espera del socket era la de Python (5). En Windows se veía como una página sin canales al abrir la aplicación, de forma intermitente. Ahora la cola es de 128 y hay una prueba con 100 conexiones simultáneas. La aplicación de escritorio, además, recarga la página (como mucho dos veces) si ve que su servidor rechaza una conexión, y lo anota en el Registro.
+
+### Documentación
+- [docs/DESKTOP.md](docs/DESKTOP.md): estado del prototipo, cómo probarlo, formato de los plugins y qué falta (empaquetado, actualizaciones). Capturas de pantalla de la aplicación en [docs/img](docs/img).
+
+### Versiones
+- Los plugins `puente-atresplayer` y `atresplayer-u7d` pasan a la 1.2.0. El puente actúa también en `/embed/video/*`.
 
 ## [1.1.0] — 2026-11-01
 

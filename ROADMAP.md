@@ -16,6 +16,8 @@ bienvenidas como *issues*.
 ## Ventana y reproductor
 - [ ] **Ventana propia** en lugar de abrir el navegador: modo app de Chrome/Edge (sin dependencias) con un ajuste para
   elegir; cerrar la ventana podría parar el servidor y sustituir al botón «Salir». pywebview, más adelante y opcional.
+  Hay un **prototipo de aplicación con Chromium propio (Electron) y plugins**, con el puente de Atresplayer como primer
+  plugin, en [docs/DESKTOP.md](docs/DESKTOP.md). Lo que falta: empaquetarlo (con el servidor dentro) y las actualizaciones; es la base de código principal, el modo navegador se mantiene.
 - [ ] **Reproductor ampliable con plugins:** cada casilla como una cadena (audio, vídeo, capas) con módulos que declaran
   sus ajustes. El sonido y la reacción a las pausas de anuncios serían los primeros.
 - [ ] **Sustituir los anuncios por otro contenido** (otro stream, vídeo o imagen), reescribiendo la lista entre

@@ -21,6 +21,15 @@ funciona igual.
 > optional local AI assistant (any OpenAI-compatible server such as llama.cpp) and live subtitles
 > and voice alerts (whisper.cpp). The interface is in Spanish.
 
+## Capturas
+
+Hechas con la aplicación de escritorio (prototipo, ver [docs/DESKTOP.md](docs/DESKTOP.md)); en el modo navegador es la misma interfaz sin las pestañas Plugins y Registro.
+
+| | |
+|---|---|
+| ![Vista principal con la lista de canales](docs/img/principal.png) | ![U7D: canales con grabaciones de la última semana](docs/img/u7d-canales.png) |
+| ![Ajustes ▸ Plugins](docs/img/plugins.png) | ![Ajustes ▸ Registro](docs/img/registro.png) |
+
 ## Características y estado
 
 Una por línea. **✅ Hecho**: implementado y con pruebas automáticas. **🧪 Probado poco**: funciona, pero solo se ha
@@ -37,9 +46,12 @@ comprobado en condiciones simuladas o con pocos casos reales. **📋 Pendiente**
 | Guía de programación (EPG) | ✅ Hecho · cubre unos 175 canales de tele y 50 emisoras |
 | Directos de YouTube incrustados | ✅ Hecho |
 | Canales propios, con cabeceras `Origin` y `Referer` | ✅ Hecho |
+| U7D: lo emitido en los últimos 7 días por La 1, La 2, 24 Horas, Teledeporte y Clan (RTVE), del más reciente al más antiguo | 🧪 Probado poco · con la red real: la lista y la reproducción de un telediario; los programas con DRM se avisan y no se reproducen |
+| U7D de Atresmedia (Antena 3, laSexta, Neox, Nova, Mega y Atreseries), solo en la aplicación de escritorio y con el plugin `atresplayer-u7d` | 🧪 Probado poco · con la red real en Antena 3: la ventana lee la lista y la grabación se abre en su página; con el DNS de esta máquina (filtra anuncios) la página no reproduce, así que la reproducción no está comprobada |
 | Favoritos, último canal, volumen y filtros (en el navegador) | ✅ Hecho |
 | Ajustes desde la interfaz, sin reiniciar | ✅ Hecho |
 | Aplicación de escritorio (sin consola, botón «Salir») | ✅ Hecho |
+| Aplicación de escritorio con ventana propia (Electrón), bandeja y plugins | 🧪 Probado poco · solo desde el código (`desktop/`), sin instalador; no hay actualizaciones automáticas |
 | Asistente de IA local (órdenes y preguntas) | ✅ Hecho · necesita un servidor compatible con OpenAI |
 | Subtítulos en directo con Whisper | 🧪 Probado poco · alucina con música y voces solapadas |
 | Alertas por voz (palabras vigiladas en las cuatro casillas) | 🧪 Probado poco · misma limitación |
@@ -113,6 +125,8 @@ Los paquetes no están firmados, así que Windows y macOS avisarán la primera v
 
 Hace falta Python 3.9 o superior.
 
+**Aplicación de escritorio con plugins (prototipo):** además hace falta Node 20 o superior. `cd desktop`, `npm install` y `npm start`. Los instaladores de la sección anterior todavía no la incluyen: [docs/DESKTOP.md](docs/DESKTOP.md) explica qué hay y qué falta.
+
 - **Windows:** doble clic en `iniciar.bat`.
 - **Linux / macOS:** `./iniciar.sh`
 - **A mano:** `python -m tdtlocal --open`
@@ -139,6 +153,33 @@ conexión para descargar las listas; después se usa la última copia guardada e
   del canal activo. Cubre unos 175 canales de tele y unas 50 emisoras; `--no-epg` la desactiva.
 - **YouTube:** los canales cuyo directo es una página de YouTube se reproducen con el reproductor
   oficial incrustado, también en el mosaico. No pasan por el proxy.
+- **U7D** (botón junto a Televisión y Radio): los canales con «últimos 7 días» (hoy, los de RTVE: La 1, La 2, 24 Horas,
+  Teledeporte y Clan). Al entrar en uno salen sus programas de la última semana, del más reciente al más antiguo, con su
+  miniatura y un buscador; un programa se reproduce como un canal, en la vista simple o en cualquier casilla de la
+  multivisión. RTVE publica la lista y cada grabación por su API pública y TDT local las lee con sus cabeceras de
+  siempre, sin hacerse pasar por su web. Los programas con DRM (películas y series con licencia, unos 3 de cada 10)
+  no se reproducen y la casilla lo dice. La lista se guarda diez minutos y las miniaturas solo se piden para las filas
+  que se ven.
+  **Atresmedia (solo en la aplicación de escritorio):** Antena 3, laSexta, Neox, Nova, Mega y Atreseries salen también
+  en U7D. Atresplayer publica lo emitido en una página pública por canal («Emitido en TV», `/antena3/u7d/`…) que solo
+  un navegador puede leer. Al entrar en uno de esos canales, la aplicación abre una ventana «Explorar Atresplayer» con
+  esa página, el plugin `tools/atresplayer-u7d` lee los programas que muestra (título, día, hora y miniatura) y la
+  ventana se cierra sola. **Los programas no se reproducen dentro de TDT local:** el reproductor incrustado de
+  Atresplayer (`/embed/video/…`) no reproduce estas grabaciones (en las pruebas, su propia petición
+  `player/v1/video/<id>` responde 404), así que al elegir uno se abre **la página de la grabación en Atresplayer, en una
+  ventana de la aplicación** (comparte datos con la de exploración: la respuesta a su aviso de cookies es tuya y se
+  recuerda; con «Abrir en tu navegador» se ve fuera). **Atresplayer exige que se carguen sus anuncios:** si tu red los
+  bloquea (un Pi-hole, AdGuard Home o un DNS que filtra publicidad), su página dice «Hemos detectado que tienes un
+  bloqueador de publicidad» y no reproduce; el Registro lo deja ver (muchos `ERR_NAME_NOT_RESOLVED` de dominios de
+  anuncios). Hay que permitir esos dominios para ver con anuncios, o entrar con una cuenta Premium. Hace falta activar el
+  plugin en Ajustes ▸ Plugins. No imita la web de la cadena ni llama a su API: lee lo
+  que la página muestra, y lo que sale es la selección de la propia web (unas decenas de programas por canal, no toda
+  la parrilla). El aviso de cookies de esa ventana es tuyo. Mediaset no está: su reproductor no se puede incrustar.
+- **Registro** (Ajustes ▸ Registro, solo en la aplicación de escritorio): lo que ha pasado en la aplicación (arranque,
+  plugins, ventana de exploración, servidor, errores de la página y fallos de red de los reproductores de dentro, una
+  vez por dirección y sin parámetros) para leerlo, filtrarlo, copiarlo o guardarlo en un archivo y enviarlo si algo
+  falla. También queda en `<datos de la app>/logs/tdt-local.log` (se rota a 1 MB). Se ocultan claves, tokens y
+  cabeceras de credenciales; aun así, léelo antes de enviarlo: puede incluir direcciones de canales y de páginas.
 - **Canales propios:** «Añadir canal» guarda un enlace que pegues tú (m3u8, mp3/aac o YouTube) en
   `data/custom.json`, con cabeceras `Origin`/`Referer` opcionales que el proxy envía con la lista y
   con cada segmento. No se salta DRM ni geobloqueos: solo cabeceras. Para no copiar el enlace a mano hay un
