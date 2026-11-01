@@ -3,21 +3,26 @@
 // Infinity forbids being embedded in other pages (`frame-ancestors`) and that is respected; its channels are already
 // in the lists, as links to its web.
 
-const EMBED = /^https:\/\/www\.atresplayer\.com\/embed\/live\/([a-z0-9-]{2,40})\/?(?:[?#].*)?$/i;
+// the live player of a channel (`/embed/live/<channel>/`) or a recording or episode (`/embed/video/<24 hex digits>/`)
+const EMBED = /^https:\/\/www\.atresplayer\.com\/embed\/(?:live\/([a-z0-9-]{2,40})|video\/([0-9a-f]{24}))\/?(?:[?#].*)?$/i;
 
 /** Address of the embeddable live player of an Atresmedia channel (`lasexta`, `antena3`…). */
 export const atresLink = (slug) => 'https://www.atresplayer.com/embed/live/' + slug + '/';
 
-/** The embed URL for an Atresplayer live-player link, or `null` if `url` is not one. */
+/** Address of the embeddable player of a recording (`id` is the 24 hex digits at the end of its address). */
+export const atresVideoLink = (id) => 'https://www.atresplayer.com/embed/video/' + id.toLowerCase() + '/';
+
+/** The embed URL for an Atresplayer player link (live or recording), or `null` if `url` is not one. */
 export function atresEmbed(url) {
   const m = EMBED.exec(String(url || ''));
-  return m ? atresLink(m[1].toLowerCase()) : null;
+  if (!m) return null;
+  return m[1] ? atresLink(m[1].toLowerCase()) : atresVideoLink(m[2]);
 }
 
 /** The channel's own page on atresplayer.com, for the "Abrir la web de la cadena" button, or `''`. */
 export function atresWeb(url) {
   const m = EMBED.exec(String(url || ''));
-  return m ? 'https://www.atresplayer.com/directos/' + m[1].toLowerCase() + '/' : '';
+  return m && m[1] ? 'https://www.atresplayer.com/directos/' + m[1].toLowerCase() + '/' : '';
 }
 
 // `epg` is the channel's id in the community guide (see EPG_EXTRA_SOURCE in config.py), `icon` its picon there

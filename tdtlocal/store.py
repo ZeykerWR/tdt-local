@@ -8,6 +8,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from . import u7d
 from .config import Config
 from .custom import MAX_SOURCES, build_custom_entry, guess_fmt, is_youtube
 from .net import Net
@@ -38,7 +39,7 @@ def read_json(path: Path) -> dict[str, Any] | None:
 
 def source_ok(channel: Channel, url: str, status: dict[str, dict]) -> bool | None:
     """Last health result of one source. YouTube and custom channels are never checked."""
-    if is_youtube(url) or channel.get("custom"):
+    if is_youtube(url) or u7d.is_u7d(url) or channel.get("custom"):
         return None
     result = status.get(url)
     return result["ok"] if result else None
@@ -77,12 +78,14 @@ class Store:
         self.status: dict[str, dict] = {}  # stream url -> {ok, ts, ms | err}
         self.health: dict[str, Any] = {"running": False, "done": 0, "total": 0, "finished": None}
         self.logo_urls: set[str] = set()
+        self.cover_urls: set[str] = set()  # U7D programme covers, learnt as the listings are read
         self.custom_headers: dict[str, dict[str, str]] = {}  # custom channel id -> extra request headers
 
     # ---- derived views
     def all_channels(self) -> list[Channel]:
         with self.lock:
-            return self.channels + self.radios + self.custom
+            tv = u7d.channels(self.channels) if self.channels else []
+            return self.channels + tv + self.radios + self.custom
 
     def sources(self, kind: str) -> dict[str, str]:
         """``url -> format`` of the checkable streams of ``"tv"``, ``"radio"`` or ``"all"``."""

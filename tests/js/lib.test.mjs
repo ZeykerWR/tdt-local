@@ -9,6 +9,7 @@ import { ago, dayLabel, hhmm } from '../../tdtlocal/static/js/lib/format.js';
 import { fillAssignments, nextRotation } from '../../tdtlocal/static/js/lib/mosaic.js';
 import { buildPlan, canPlayFormat, originNote, usesHls } from '../../tdtlocal/static/js/lib/plan.js';
 import { initials, norm, slug } from '../../tdtlocal/static/js/lib/text.js';
+import { newestFirst, parseU7d, programmeChannel, whenLabel } from '../../tdtlocal/static/js/lib/u7d.js';
 import { ytEmbed } from '../../tdtlocal/static/js/lib/youtube.js';
 
 const ch = (id, name, extra = {}) => ({
@@ -224,4 +225,45 @@ test('buildPlan puts an embedded player after the streams, and never first by it
   assert.deepEqual(buildPlan(c, { onlyUrl: player }).map((s) => s.u), [player]);
   const down = ch('x', 'X', { sources: [{ u: player, ok: null, f: '' }, { u: stream, ok: false, f: '' }] });
   assert.deepEqual(buildPlan(down).map((s) => s.u), [stream, player]); // even a stream that failed its last check goes first
+});
+
+test('U7D sources round-trip and a programme becomes a playable channel', () => {
+  assert.deepEqual(parseU7d('u7d:la-1:17281881'), { key: 'la-1', ref: '17281881' });
+  assert.deepEqual(parseU7d('u7d:24h:5'), { key: '24h', ref: '5' });
+  assert.equal(parseU7d('https://x/a.m3u8'), null);
+  assert.equal(parseU7d('u7d:sinref'), null);
+  const c = programmeChannel({ id: 'u7d-la-1', logo: 'L' }, { id: 'abc', title: 'Telediario', ts: 1 });
+  assert.equal(c.id, 'u7d:la-1:abc');
+  assert.equal(c.name, 'Telediario');
+  assert.equal(c.kind, 'tv');
+  assert.equal(c.vod, true);
+  assert.equal(c.logo, 'L'); // no thumbnail: the logo of the channel
+  assert.equal(c.thumb, false);
+  const t = programmeChannel({ id: 'u7d-la-1', logo: 'L' }, { id: 'abc', title: 'X', ts: 1, image: 'https://i/x.jpg' });
+  assert.equal(t.logo, 'https://i/x.jpg');
+  assert.equal(t.thumb, true);
+  assert.deepEqual(parseU7d(c.sources[0].u), { key: 'la-1', ref: 'abc' });
+});
+
+test('whenLabel says today, yesterday or the day', () => {
+  const now = new Date(2026, 10, 1, 18, 0); // 1 Nov 2026, local time
+  const at = (month, day, h, m) => new Date(2026, month, day, h, m).getTime() / 1000;
+  assert.equal(whenLabel(at(10, 1, 17, 40), now), 'Hoy · 17:40');
+  assert.equal(whenLabel(at(10, 1, 0, 5), now), 'Hoy · 00:05');
+  assert.equal(whenLabel(at(9, 31, 21, 30), now), 'Ayer · 21:30');
+  assert.match(whenLabel(at(9, 26, 21, 30), now), /26 oct.* · 21:30$/);
+  assert.equal(whenLabel(0, now), '');
+});
+
+test('newestFirst sorts descending without touching the input', () => {
+  const items = [{ ts: 1 }, { ts: 3 }, { ts: 2 }];
+  assert.deepEqual(newestFirst(items).map((i) => i.ts), [3, 2, 1]);
+  assert.deepEqual(items.map((i) => i.ts), [1, 3, 2]);
+});
+
+test('voice and typed commands never pick a U7D entry as a channel', () => {
+  const live = { id: 'la-1', name: 'La 1', kind: 'tv', sources: [{ u: 'https://x/a.m3u8' }], ok: true };
+  const recorded = { id: 'u7d-la-1', name: 'La 1', kind: 'u7d', sources: [{ u: 'u7d:la-1' }], ok: null };
+  assert.equal(findChannel([recorded, live], 'tv', 'la 1').id, 'la-1');
+  assert.equal(findChannel([recorded], 'tv', 'la 1'), null);
 });

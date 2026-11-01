@@ -10,6 +10,7 @@ from .net import Net
 from .store import Store
 
 MAX_LOGO_BYTES = 1_000_000
+MAX_COVER_BYTES = 3_000_000  # U7D programme covers
 FAILURE_TTL = 6 * 3600  # do not retry a broken logo URL for this long
 
 _MAGIC = [
@@ -38,8 +39,10 @@ class LogoCache:
 
     def get(self, url: str) -> tuple[str, bytes] | None:
         """``(content_type, bytes)`` for a logo URL taken from the lists, or ``None`` if unknown/unavailable."""
-        if url not in self.store.logo_urls:
+        cover = url in self.store.cover_urls
+        if not cover and url not in self.store.logo_urls:
             return None
+        limit = MAX_COVER_BYTES if cover else MAX_LOGO_BYTES
         key = hashlib.sha1(url.encode(), usedforsecurity=False).hexdigest()
         self.directory.mkdir(parents=True, exist_ok=True)
         hit = next((p for p in self.directory.glob(key + ".*") if p.suffix in EXT_TYPE), None)
@@ -49,8 +52,8 @@ class LogoCache:
                 return None
             try:
                 with self.net.open(url, {"Accept": "image/*"}, False, 10) as response:
-                    body = response.read(MAX_LOGO_BYTES + 1)
-                kind = sniff_image(body) if len(body) <= MAX_LOGO_BYTES else None
+                    body = response.read(limit + 1)
+                kind = sniff_image(body) if len(body) <= limit else None
                 if not kind:
                     raise ValueError("no es una imagen admitida")
                 hit = self.directory / (key + kind[1])

@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from . import __version__, ads
+from . import __version__, ads, u7d
 from .ai import Assistant
 from .config import Config
 from .epg import EpgSyncer
@@ -17,6 +17,7 @@ from .scte_watch import ScteWatcher
 from .settings import BY_NAME, SettingsStore
 from .store import Store, channel_ok, source_ok
 from .stt import Transcriber
+from .u7d import U7d
 from .whisper_models import ModelDownloader
 
 
@@ -33,6 +34,7 @@ class App:
         self.feeds = FeedSyncer(config, self.store, self.net)
         self.epg = EpgSyncer(config, self.store, self.net)
         self.health = HealthChecker(self.store, self.net)
+        self.u7d = U7d(self.net, self._allow_cover)
         self.scte = ScteWatcher(config, self.store, self.net)
         self.assistant = Assistant(config, self.store)
         self.transcriber = Transcriber(config)
@@ -67,6 +69,19 @@ class App:
     def close(self) -> None:
         self.stop.set()
         self.transcriber.close()
+
+    def allow_covers(self, urls: Any) -> int:
+        """Let the logo proxy fetch the covers a page names (see ``u7d.cover_ok``). Returns how many it took."""
+        taken = 0
+        for url in (urls if isinstance(urls, list) else [])[: u7d.MAX_COVERS]:
+            if u7d.cover_ok(url):
+                self._allow_cover(url)
+                taken += 1
+        return taken
+
+    def _allow_cover(self, url: str) -> None:
+        with self.store.lock:
+            self.store.cover_urls.add(url)
 
     def channels_payload(self) -> dict[str, Any]:
         """The JSON behind ``/api/channels``: every channel with its health, plus list metadata."""

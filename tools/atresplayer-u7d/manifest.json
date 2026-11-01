@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "TDT local · lista U7D de Atresplayer",
+  "version": "1.2.0",
+  "description": "Lee de la página pública «Emitido en TV (U7D)» de un canal de Atresplayer los programas de la última semana y se los pasa a TDT local. Solo lee lo que la página muestra.",
+  "content_scripts": [
+    {
+      "matches": ["https://www.atresplayer.com/*/u7d/", "https://www.atresplayer.com/*/u7d/*"],
+      "js": ["lector.js"],
+      "all_frames": false
+    }
+  ]
+}

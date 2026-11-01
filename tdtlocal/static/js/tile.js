@@ -8,6 +8,7 @@ import { ATRES_ORIGIN, ContentClock, audioMessage, fxMessage, parseBridge } from
 import { buildPlan, originNote, usesHls } from './lib/plan.js';
 import { atresEmbed } from './lib/embeds.js';
 import { ytEmbed } from './lib/youtube.js';
+import { parseU7d } from './lib/u7d.js';
 
 const ATTEMPT_TIMEOUT_MS = 15000;
 const MAX_NETWORK_RETRIES = 3;
@@ -413,6 +414,7 @@ export class Tile {
     this.draw();
     if (this.chain) this.chain.reset(); // another channel: measure it afresh
     this.failCode = 0;
+    this.reason = ''; // why the last attempt failed, when the server said so (U7D)
     this.syncAudio();
     if (!c.sources.length) {
       this.failed = true;
@@ -421,6 +423,24 @@ export class Tile {
         : 'no tiene un directo abierto en la lista de TDTChannels.';
       this.showNotice('«' + c.name + '» ' + why,
         c.web ? [{ label: 'Abrir la web de la cadena', href: c.web, primary: true }] : []);
+      return;
+    }
+    if (c.recording) { // Atresplayer's embedded player cannot play its recordings: its own page can, in a window of the app
+      this.failed = true;
+      const desktop = window.tdtDesktop && window.tdtDesktop.atres && window.tdtDesktop.atres.watch;
+      const open = () => window.tdtDesktop.atres.watch(c.web, c.name);
+      const browser = { label: 'Abrir en tu navegador', href: c.web };
+      if (desktop) {
+        this.setInfo('Se ve en una ventana aparte de la aplicación');
+        this.showNotice('«' + c.name + '» se ve en la página de Atresplayer, en una ventana de la aplicación (su reproductor '
+          + 'incrustado no reproduce las grabaciones). Si sale su aviso de cookies, la respuesta es tuya y se recuerda.',
+          [{ label: 'Abrir la ventana', primary: true, fn: open }, browser]);
+        open();
+      } else {
+        this.setInfo('Se ve en la web de Atresplayer');
+        this.showNotice('«' + c.name + '» es una grabación de Atresplayer y su reproductor incrustado no la reproduce desde aquí. '
+          + 'Se ve en su página, en tu navegador.', [{ ...browser, label: 'Ver en Atresplayer', primary: true }]);
+      }
       return;
     }
     if (c.kind !== 'radio' && typeof Hls === 'undefined' && !this.video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -442,8 +462,8 @@ export class Tile {
       this.failed = true;
       this.setInfo('Sin señal');
       const why = plan.length === 1 ? 'La única fuente no responde' : 'Ninguna de las ' + plan.length + ' fuentes responde';
-      this.showNotice('No se pudo reproducir «' + c.name + '». ' + why + '.' + originNote(this.failCode)
-        + ' Puede estar caído o limitado por zona.',
+      const text = this.reason ? this.reason + '.' : why + '.' + originNote(this.failCode) + ' Puede estar caído o limitado por zona.';
+      this.showNotice('No se pudo reproducir «' + c.name + '». ' + text,
         this.retryAction(c).concat(c.web ? [{ label: 'Abrir la web de la cadena', href: c.web }] : []));
       return;
     }
@@ -467,8 +487,8 @@ export class Tile {
       this.failed = false;
       clearTimeout(this.timer);
       this.hideNotice();
-      this.setInfo('En directo · fuente ' + step.n + ' de ' + total);
-      if (!atresEmbed(step.u)) this.host.remember(c, step.u); // an embedded player must not become the favourite
+      this.setInfo(c.vod ? 'Grabación' : 'En directo · fuente ' + step.n + ' de ' + total);
+      if (!c.vod && !atresEmbed(step.u)) this.host.remember(c, step.u); // an embedded player must not become the favourite
     };
     const lost = () => {
       this.failed = true;
@@ -490,7 +510,10 @@ export class Tile {
 
     const embed = ytEmbed(step.u);
     const atres = atresEmbed(step.u);
-    if (embed) {
+    const u7d = parseU7d(step.u);
+    if (u7d) {
+      this.attachU7d(u7d, s, { fail, success, lost, startPlay });
+    } else if (embed) {
       this.attachYoutube(c, embed, success);
     } else if (atres) {
       this.attachAtres(c, atres, success);
@@ -499,6 +522,20 @@ export class Tile {
     } else {
       this.attachDirect(url, s, { fail, success, lost, startPlay });
     }
+  }
+
+  // U7D: the server resolves a recorded programme to an HLS list, which then plays like any channel
+  attachU7d({ key, ref }, s, handlers) {
+    fetch('/api/u7d/play?c=' + encodeURIComponent(key) + '&r=' + encodeURIComponent(ref))
+      .then((r) => r.json())
+      .then((d) => {
+        if (this.session !== s) return; // another programme was chosen meanwhile
+        if (!d.url) throw new Error(d.error || 'sin URL');
+        const url = '/proxy?u=' + encodeURIComponent(d.url) + '&s=' + this.tag;
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) this.attachHls(url, s, handlers);
+        else this.attachDirect(url, s, handlers);
+      })
+      .catch((err) => { this.reason = String((err && err.message) || err); handlers.fail(); });
   }
 
   attachYoutube(c, embed, success) {
@@ -529,7 +566,7 @@ export class Tile {
     f.addEventListener('load', () => {
       success();
       // without the bridge script its sound cannot be silenced from here: in multi-view they would play together
-      this.setInfo('Reproductor de Atresplayer · pulsa «Directo»'
+      this.setInfo('Reproductor de Atresplayer · pulsa «' + (c.vod ? 'Reproducir' : 'Directo') + '»'
         + (this.host.mode() === 'multi' && !this.bridged ? ' (sin el script del puente no se puede silenciar)' : ''));
       clearTimeout(this.bridgeTimer);
       this.bridgeTimer = setTimeout(() => {

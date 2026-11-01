@@ -26,8 +26,8 @@ Con ella instalada, TDT local puede:
 - No toca, salta ni bloquea la publicidad: solo lee el aviso que ya se ve en pantalla.
 - No lee nada que no estés viendo, ni tus cookies, ni tu cuenta, ni el resto de tus pestañas.
 - No pide **ningún permiso** (el `manifest.json` no declara `permissions` ni `host_permissions`).
-- Solo se ejecuta en `https://www.atresplayer.com/embed/live/*` y `https://atresplayer.com/embed/live/*`, es decir,
-  dentro del reproductor incrustado; no en el resto de Atresplayer ni en otras webs.
+- Solo se ejecuta en `https://www.atresplayer.com/embed/live/*` y `/embed/video/*` (y las mismas rutas sin `www`), es
+  decir, dentro del reproductor incrustado del directo o de una grabación; no en el resto de Atresplayer ni en otras webs.
 - Solo habla con la página que incrusta el reproductor, y solo si es TDT local (`127.0.0.1`, `localhost` o `[::1]`).
   Si el reproductor está incrustado en otra página, el puente no hace nada.
 

@@ -8,7 +8,8 @@ export const TILES = 4;
 const vol = store.get('vol', null);
 const secs = store.get('rotSecs', 20);
 const alerts = store.get('alerts', {});
-const kind = store.get('kind', 'tv') === 'radio' ? 'radio' : 'tv';
+const savedKind = store.get('kind', 'tv');
+const kind = savedKind === 'radio' || savedKind === 'u7d' ? savedKind : 'tv';
 const cats = store.get('cats', {}); // list kind -> last category chosen
 
 export const state = {
@@ -26,6 +27,7 @@ export const state = {
   signature: '',
   checkTimer: null,
   kind,
+  u7d: null, // U7D: the channel opened and its programmes ({c, items, error}), or null while choosing a channel
   cats,
   cat: cats[kind] || (kind === 'tv' ? store.get('cat', '') : ''),
   grp: '',

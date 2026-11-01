@@ -11,7 +11,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from . import __version__
+from . import __version__, u7d
 from .ads import web_origin
 from .ai import ModelError
 from .app import App
@@ -43,14 +43,25 @@ CSP = (
 MAX_BODY = 16384
 MAX_PLAYLIST = 4_000_000
 MAX_PROXY_URL = 4096
+
 CHUNK = 65536
 PLAYLIST_TYPE = "application/vnd.apple.mpegurl"
+
+
+def _close_quietly(exc: BaseException) -> None:
+    """An HTTP error from the origin still holds its response open: let go of it."""
+    close = getattr(exc, "close", None)
+    if callable(close):
+        close()
 
 
 class TdtServer(ThreadingHTTPServer):
     """``ThreadingHTTPServer`` that carries the :class:`App` for its handlers."""
 
     daemon_threads = True
+    # A page asks for dozens of modules at once. With the default queue of 5 the system refuses the connections that
+    # do not fit (seen on Windows as ERR_CONNECTION_REFUSED with the server up) and the page loads without its scripts.
+    request_queue_size = 128
     allow_reuse_address = os.name != "nt"  # on Windows SO_REUSEADDR would allow a second bind to the same port
 
     def __init__(self, address: tuple[str, int], app: App) -> None:
@@ -59,9 +70,6 @@ class TdtServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    # A page asks for dozens of modules at once. With the default queue of 5 the system refuses the connections that
-    # do not fit (seen on Windows as ERR_CONNECTION_REFUSED with the server up) and the page loads without its scripts.
-    request_queue_size = 128
     server_version = f"TDTLocal/{__version__}"
     sys_version = ""
     server: TdtServer  # type: ignore[assignment]
@@ -162,6 +170,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, app.transcriber.poll(arg("s", 40), after))
         elif path == "/api/epg":
             self._json(200, app.epg.payload(arg("id", 200)))
+        elif path == "/api/u7d":
+            self._u7d_list(arg("c", 30))
+        elif path == "/api/u7d/play":
+            self._u7d_play(arg("c", 30), arg("r", 100))
         elif path == "/proxy":
             self._proxy(arg("u", MAX_PROXY_URL + 1), arg("c", 100), arg("s", 40))
         elif path == "/logo":
@@ -223,6 +235,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(200, {"ok": True, "id": cid})
             except ValueError as exc:
                 self._json(400, {"ok": False, "error": str(exc)})
+        elif path == "/api/u7d/covers":
+            self._json(200, {"ok": True, "taken": app.allow_covers(self._body().get("urls"))})
         elif path == "/api/quit":
             if not app.config.allow_quit:
                 self._json(404, {"error": "no existe"})
@@ -295,6 +309,29 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"")
             return
         self._send(200, logo[1], logo[0], {"Cache-Control": "public, max-age=86400"})
+
+    # ---- last 7 days
+    def _u7d_list(self, key: str) -> None:
+        try:
+            self._json(200, {"items": self.app.u7d.programmes(key)})
+        except ValueError as exc:
+            self._json(404, {"error": str(exc)})
+        except Exception as exc:
+            _close_quietly(exc)
+            self._json(502, {"error": f"U7D: {type(exc).__name__}: {exc}"})
+
+    def _u7d_play(self, key: str, ref: str) -> None:
+        try:
+            out = u7d.resolve(self.app.net, key, ref)
+        except ValueError as exc:
+            self._json(404, {"error": str(exc)})
+            return
+        except Exception as exc:
+            _close_quietly(exc)
+            self._json(502, {"error": f"U7D: {type(exc).__name__}: {exc}"})
+            return
+        self.app.net.allow(out["url"])  # the proxy only serves hosts it has been told about
+        self._json(200, out)
 
     # ---- proxy
     def _proxy(self, url: str, channel_tag: str = "", session_tag: str = "") -> None:

@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         TDT local · puente con el reproductor de Atresplayer
 // @namespace    https://github.com/cibernicola/tdt-local
-// @version      1.1.0
+// @version      1.2.0
 // @description  Cuenta a TDT local cuándo el reproductor incrustado de Atresplayer muestra «Publicidad», y le deja silenciarlo.
 // @match        https://www.atresplayer.com/embed/live/*
 // @match        https://atresplayer.com/embed/live/*
+// @match        https://www.atresplayer.com/embed/video/*
+// @match        https://atresplayer.com/embed/video/*
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==

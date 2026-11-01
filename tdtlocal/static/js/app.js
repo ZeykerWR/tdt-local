@@ -13,6 +13,10 @@ import { nearestSecs } from './lib/commands.js';
 import { epgDetail, epgOf, progress } from './lib/epg.js';
 import { categoriesOf, filterChannels, isListed } from './lib/filters.js';
 import { ago } from './lib/format.js';
+import { norm } from './lib/text.js';
+import {
+  ATRES_PLUGIN, atresChannels, atresItems, atresProgramme, newestFirst, programmeChannel, whenLabel,
+} from './lib/u7d.js';
 import { fillAssignments, nextRotation } from './lib/mosaic.js';
 import { canPlayFormat } from './lib/plan.js';
 import { atresEmbed } from './lib/embeds.js';
@@ -50,10 +54,12 @@ function osd(num, name) {
 }
 
 /* ------------------------------------------------------------ filters and list */
-const currentFilters = () => ({
-  kind: state.kind, onlyStream: onlyStream.checked, hideDown: hideDown.checked, cat: state.cat, grp: state.grp,
-  onlyFav: onlyFav.checked, favs: state.favs, query: q.value,
-});
+const currentFilters = () => (state.kind === 'u7d'
+  ? { kind: 'u7d', onlyStream: false, hideDown: false, cat: '', grp: '', onlyFav: false, favs: state.favs, query: q.value }
+  : {
+    kind: state.kind, onlyStream: onlyStream.checked, hideDown: hideDown.checked, cat: state.cat, grp: state.grp,
+    onlyFav: onlyFav.checked, favs: state.favs, query: q.value,
+  });
 
 function renderFilters() {
   const f = currentFilters();
@@ -100,7 +106,7 @@ function makeRow(c, i) {
   const dot = el('span', 'dot' + (c.ok === true ? ' ok' : c.ok === false ? ' bad' : ''));
   dot.title = c.ok === true ? 'Responde' : c.ok === false ? 'No responde' : 'Sin comprobar';
   b.append(dot);
-  b.addEventListener('click', () => play(c));
+  b.addEventListener('click', () => (c.kind === 'u7d' ? openU7d(c) : play(c)));
   const f = el('button', 'fav');
   f.type = 'button';
   f.dataset.fav = c.id;
@@ -119,7 +125,107 @@ function makeRow(c, i) {
   return li;
 }
 
+/* ------------------------------------------------------------ U7D (last 7 days) */
+// Inside a U7D channel the list shows its programmes, newest first; a programme is played like any channel.
+function makeProgRow(p, i) {
+  const li = el('li');
+  const b = el('button', 'row prog');
+  b.type = 'button';
+  b.dataset.id = p.id;
+  b.append(el('span', 'num', String(i + 1)));
+  const logo = el('span', 'logo' + (p.thumb ? ' thumb' : ''));
+  fillLogo(logo, p);
+  b.append(logo);
+  const txt = el('span', 'txt');
+  txt.append(el('span', 'name', p.name));
+  txt.append(el('span', 'sub', [p.when, p.subtitle].filter(Boolean).join(' · ')));
+  b.append(txt);
+  b.addEventListener('click', () => play(p));
+  li.append(b);
+  return li;
+}
+
+function renderProgrammes() {
+  const { c, items, error } = state.u7d;
+  const head = el('li', 'u7d-head');
+  const back = el('button', 'btn', '← Canales');
+  back.type = 'button';
+  back.addEventListener('click', () => { state.u7d = null; q.value = ''; renderList(); }); // the search was for programmes
+  head.append(back, el('strong', '', c.name + ' · últimos 7 días'));
+  const note = (text) => { const li = el('li', 'empty'); li.textContent = text; return li; };
+  state.view = [];
+  if (error) {
+    const retry = el('button', 'btn', 'Reintentar');
+    retry.type = 'button';
+    retry.addEventListener('click', () => openU7d(c));
+    const li = note(error + ' ');
+    li.append(retry);
+    list.replaceChildren(head, li);
+  } else if (!items) {
+    list.replaceChildren(head, note(c.provider === 'atres'
+      ? 'Leyendo la página de Atresplayer en una ventana aparte. Se cierra sola al terminar; si sale su aviso de cookies, es tuyo.'
+      : 'Cargando…'));
+  } else if (!items.length) {
+    list.replaceChildren(head, note('Sin programas disponibles.'));
+  } else {
+    const query = norm(q.value);
+    const shown = query ? items.filter((it) => norm(it.title + ' ' + it.subtitle).includes(query)) : items;
+    const make = c.provider === 'atres' ? atresProgramme : programmeChannel;
+    state.view = shown.map((it) => ({ ...make(c, it), subtitle: it.subtitle, when: whenLabel(it.ts) }));
+    if (state.view.length) list.replaceChildren(head, ...state.view.map(makeProgRow));
+    else list.replaceChildren(head, note('Ningún programa con esa búsqueda.'));
+  }
+  list.scrollTop = 0;
+  markCurrent(false);
+  updateDeck();
+}
+
+// What Atresplayer's own page «Emitido en TV (U7D)» of a channel shows, read by the plugin in the app's explorer window
+async function readAtres(mine) {
+  let res;
+  try { res = await window.tdtDesktop.atres.list(mine.c.slug); } catch { res = { error: 'sin respuesta' }; }
+  if (state.u7d !== mine) return; // the user went elsewhere meanwhile
+  if (res && res.items) {
+    mine.items = newestFirst(atresItems(res.items));
+    // the logo proxy only serves covers the server has been told about
+    try { await postJson('/api/u7d/covers', { urls: mine.items.map((i) => i.image).filter(Boolean) }); } catch { /* no covers */ }
+  } else if (res && res.error === 'plugin-off') {
+    mine.error = 'Para leer la lista de ' + mine.c.name + ' activa el plugin «Atresplayer U7D» en Ajustes ▸ Plugins y vuelve a entrar.';
+  } else if (res && res.error === 'busy') {
+    mine.error = 'Ya hay una ventana de exploración de Atresplayer abierta.';
+  } else {
+    mine.error = 'No se pudo leer la lista de ' + mine.c.name + ' (' + ((res && res.error) || 'sin datos') + ').';
+  }
+  renderList();
+}
+
+async function openU7d(c) {
+  const mine = { c, items: null, error: '' };
+  state.u7d = mine;
+  q.value = ''; // what was typed searched channels, not programmes
+  renderList();
+  if (c.provider === 'atres') { readAtres(mine); return; }
+  let r;
+  try { r = await api('/api/u7d?c=' + encodeURIComponent(c.id.replace(/^u7d-/, ''))); } catch { r = { ok: false, data: null }; }
+  if (state.u7d !== mine) return; // the user went elsewhere meanwhile
+  if (r.ok && r.data && r.data.items) mine.items = newestFirst(r.data.items);
+  else mine.error = (r.data && r.data.error) || 'No se pudo cargar la lista de ' + c.name + '.';
+  renderList();
+}
+
+// U7D has no categories, favourites or "only with live": hide what does not apply, and search programmes inside a channel
+function syncFilterBar() {
+  const u7d = state.kind === 'u7d';
+  selCat.hidden = u7d;
+  document.querySelector('.toggles').hidden = u7d;
+  if (u7d) selGrp.hidden = true;
+  q.placeholder = u7d ? (state.u7d ? 'Buscar programa' : 'Buscar canal') : state.kind === 'radio' ? 'Buscar emisora' : 'Buscar canal';
+  q.setAttribute('aria-label', q.placeholder);
+}
+
 function renderList() {
+  syncFilterBar();
+  if (state.kind === 'u7d' && state.u7d) { renderProgrammes(); return; }
   state.view = filterChannels(state.channels, currentFilters());
   const top = list.scrollTop;
   if (!state.view.length) {
@@ -157,13 +263,15 @@ function markCurrent(scroll) {
 }
 
 const numOf = (c) => { const i = state.view.findIndex((x) => x.id === c.id); return i < 0 ? 0 : i + 1; };
+// what the screen shows as the "number" of a channel; a recorded programme is not a channel
+const numLabel = (c) => (c.vod ? 'U7D' : numOf(c) || '');
 
 /* ------------------------------------------------------------ player deck (below the picture) */
 function updateDeck() {
   const t = focusTile();
   const c = t.c;
   state.tiles.forEach((x) => x.draw());
-  $('nowNum').textContent = c && numOf(c) ? String(numOf(c)) : '--';
+  $('nowNum').textContent = c && numLabel(c) ? String(numLabel(c)) : '--';
   $('nowName').textContent = c ? c.name : (state.mode === 'multi' ? 'Casilla vacía' : 'Sin canal');
   drawInfo();
   document.title = c ? c.name + ' · TDT local' : 'TDT local';
@@ -208,8 +316,8 @@ function toggleFav(c) {
 function play(c, onlyUrl) {
   adsTuned(); // a channel chosen during an ad break is the user's doing
   focusTile().play(c, onlyUrl);
-  if (state.mode === 'single') osd(numOf(c) || '', c.name);
-  store.set('last', c.id);
+  if (state.mode === 'single') osd(numLabel(c), c.name);
+  if (!c.vod) store.set('last', c.id); // a programme of the last 7 days is not a channel to come back to
   saveMulti();
   markCurrent(true);
   updateDeck();
@@ -218,7 +326,7 @@ function play(c, onlyUrl) {
 // the channel an ad-break reaction switches to (and back from): shown, but not remembered as the last one watched
 function tune(c) {
   focusTile().play(c);
-  if (state.mode === 'single') osd(numOf(c) || '', c.name);
+  if (state.mode === 'single') osd(numLabel(c), c.name);
   markCurrent(true);
   updateDeck();
 }
@@ -316,7 +424,7 @@ function setFocus(i) {
     state.focus = i;
     applyLayout();
     applyAudio();
-    if (cur()) store.set('last', cur().id);
+    if (cur() && !cur().vod) store.set('last', cur().id);
     updateDeck();
     markCurrent(true);
   }
@@ -523,7 +631,9 @@ async function load(force) {
   if (d.health.running) pollCheck();
   if (sig === state.signature && !force) return;
   state.signature = sig;
-  state.channels = d.channels;
+  // Atresmedia's catch-up can only be read by the desktop app (see readAtres): its channels join the U7D list there
+  const atres = window.tdtDesktop && window.tdtDesktop.atres ? atresChannels(d.channels) : [];
+  state.channels = d.channels.concat(atres);
   state.byId = new Map(state.channels.map((c) => [c.id, c]));
   for (const t of state.tiles) if (t.c) t.c = state.byId.get(t.c.id) || t.c;
   rerender();
@@ -552,13 +662,18 @@ function syncKind() {
   document.querySelectorAll('#kinds button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.kind === state.kind ? 'true' : 'false'));
   const radio = state.kind === 'radio';
   $('btnCheck').textContent = radio ? 'Comprobar emisoras' : 'Comprobar canales';
+  $('btnCheck').hidden = state.kind === 'u7d'; // nothing to check: the programmes are resolved when played
   q.placeholder = radio ? 'Buscar emisora' : 'Buscar canal';
   q.setAttribute('aria-label', q.placeholder);
   $('hideDownWrap').hidden = !state.channels.some((c) => c.kind === state.kind && c.ok !== null);
 }
 
 function setKind(k) {
-  if (state.kind === k) return;
+  if (state.kind === k) {
+    if (k === 'u7d' && state.u7d) { state.u7d = null; q.value = ''; renderList(); } // the U7D button again: back to the channels
+    return;
+  }
+  state.u7d = null;
   state.cats[state.kind] = state.cat;
   store.set('cats', state.cats);
   state.kind = k;

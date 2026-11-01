@@ -13,7 +13,7 @@ export const nearestSecs = (seconds) => ROTATION_SECS.reduce((a, b) => (Math.abs
  * Playable channels of the current list `kind` win over the other list.
  */
 export function findChannel(channels, kind, name) {
-  const pool = channels.filter((c) => c.sources.length && c.ok !== false);
+  const pool = channels.filter((c) => c.sources.length && c.ok !== false && c.kind !== 'u7d');
   const pick = (arr) => arr.find((c) => c.kind === kind) || arr[0];
   const full = slug(name);
   // «la 2» is a name; so is «la sexta»; but «el canal trece» is «trece»: try with and without the article

@@ -193,7 +193,7 @@ test('the bridge is also an extension that can be loaded as it is, matching what
   assert.equal(content.all_frames, true); // the player is an iframe of TDT local
   const header = [...bridgeSource.matchAll(/^\/\/ @match\s+(\S+)/gm)].map((m) => m[1]);
   assert.deepEqual([...content.matches].sort(), header.sort()); // the same pages as the userscript header
-  for (const pattern of content.matches) assert.match(pattern, /^https:\/\/(www\.)?atresplayer\.com\/embed\/live\/\*$/);
+  for (const pattern of content.matches) assert.match(pattern, /^https:\/\/(www\.)?atresplayer\.com\/embed\/(live|video)\/\*$/);
 });
 
 test('ContentClock tells the start-up ad (no programme before it) from a break', () => {

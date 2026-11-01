@@ -2,6 +2,8 @@
 // What is shown is described in lib/settings-form.js; everything is validated and saved by the server.
 import { requestJson } from './api.js';
 import { $, el } from './dom.js';
+import { LOGS_INTRO, MODES, filterLines, summarize as summarizeLogs } from './lib/logs-panel.js';
+import { PLUGINS_INTRO, describePlugin, summarize } from './lib/plugins-panel.js';
 import {
   FIELDS, TABS, collectChanges, describeDiagnosis, describeDownload, fieldsOf, formatBytes, percent,
 } from './lib/settings-form.js';
@@ -12,6 +14,13 @@ let snapshot = null; // last /api/settings answer
 let hooks = null;
 let pollTimer = null;
 let removeKey = null; // the "remove saved key" checkbox
+
+// only the desktop app has window.tdtDesktop; in a browser the settings have no «Plugins» tab
+const desktop = () => (typeof window !== 'undefined' && window.tdtDesktop && window.tdtDesktop.plugins) || null;
+const desktopLogs = () => (typeof window !== 'undefined' && window.tdtDesktop && window.tdtDesktop.logs) || null;
+const tabsShown = () => (desktop()
+  ? [...TABS, { id: 'plugins', label: 'Plugins' }, ...(desktopLogs() ? [{ id: 'logs', label: 'Registro' }] : [])]
+  : TABS);
 
 const dlg = () => $('setDlg');
 const say = (text, bad = false) => {
@@ -142,6 +151,135 @@ function adsHelp() {
     + 'Nada se bloquea ni se salta: el vídeo sigue su curso.');
 }
 
+/* ------------------------------------------------------------ plugins (desktop app only) */
+function pluginsPanel() {
+  const box = el('div', 'plugins');
+  box.append(el('p', 'dlg-hint', PLUGINS_INTRO));
+  const summary = el('p', 'dlg-hint');
+  summary.id = 'pluginSummary';
+  summary.setAttribute('role', 'status');
+  const list = el('ul', 'plugin-list');
+  list.id = 'pluginList';
+  const apply = el('p', 'dlg-hint plugin-apply');
+  apply.id = 'pluginApply';
+  apply.hidden = true;
+  const reload = el('button', 'btn', 'Recargar ahora');
+  reload.type = 'button';
+  reload.addEventListener('click', () => window.tdtDesktop.reload());
+  apply.append('Los cambios se aplican al recargar la ventana. ', reload);
+  const actions = el('div', 'plugin-actions');
+  const open = el('button', 'btn', 'Abrir la carpeta de plugins');
+  open.type = 'button';
+  open.addEventListener('click', () => desktop().openFolder());
+  const rescan = el('button', 'btn', 'Buscar de nuevo');
+  rescan.type = 'button';
+  rescan.addEventListener('click', async () => paintPlugins(await desktop().rescan()));
+  actions.append(open, rescan);
+  const where = el('p', 'dlg-hint');
+  where.id = 'pluginFolder';
+  box.append(summary, list, apply, actions, where);
+  return box;
+}
+
+function paintPlugins(data) {
+  if (!data) return;
+  const list = $('pluginList');
+  list.replaceChildren();
+  for (const plugin of data.plugins) {
+    const d = describePlugin(plugin);
+    const item = el('li', 'plugin' + (d.usable ? '' : ' broken'));
+    const label = el('label', 'chk');
+    const box = el('input');
+    box.type = 'checkbox';
+    box.checked = d.on;
+    box.disabled = !d.usable;
+    box.addEventListener('change', async () => {
+      paintPlugins(await desktop().setEnabled(plugin.id, box.checked));
+      $('pluginApply').hidden = false;
+    });
+    label.append(box, el('strong', '', ' ' + d.title));
+    item.append(label);
+    for (const line of [d.description, d.acts, d.source]) if (line) item.append(el('p', 'dlg-hint', line));
+    for (const problem of d.problems) item.append(el('p', 'field-error', 'No se puede usar: ' + problem));
+    list.append(item);
+  }
+  $('pluginSummary').textContent = summarize(data.plugins);
+  $('pluginFolder').textContent = 'Los tuyos van en una carpeta por plugin dentro de: ' + data.folder;
+}
+
+/* ------------------------------------------------------------ log (desktop app only) */
+let logData = null; // what the app last said: {lines, folder}
+
+function logsPanel() {
+  const box = el('div', 'logs');
+  box.append(el('p', 'dlg-hint', LOGS_INTRO));
+  const bar = el('div', 'plugin-actions');
+  const mode = el('select');
+  mode.id = 'logMode';
+  mode.setAttribute('aria-label', 'Qué líneas ver');
+  for (const [value, text] of Object.entries(MODES)) mode.append(new Option(text, value));
+  mode.addEventListener('change', paintLogs);
+  const button = (text, fn) => {
+    const b = el('button', 'btn', text);
+    b.type = 'button';
+    b.addEventListener('click', fn);
+    return b;
+  };
+  bar.append(mode,
+    button('Actualizar', loadLogs),
+    button('Copiar', copyLogs),
+    button('Guardar en un archivo…', saveLogs),
+    button('Abrir la carpeta de registros', () => desktopLogs().openFolder()));
+  const summary = el('p', 'dlg-hint');
+  summary.id = 'logSummary';
+  summary.setAttribute('role', 'status');
+  const view = el('pre', 'log-view');
+  view.id = 'logView';
+  view.tabIndex = 0;
+  view.setAttribute('aria-label', 'Registro de la aplicación');
+  const msg = el('p', 'dlg-hint');
+  msg.id = 'logMsg';
+  msg.setAttribute('role', 'status');
+  box.append(bar, summary, view, msg);
+  return box;
+}
+
+function paintLogs() {
+  if (!logData) return;
+  const lines = filterLines(logData.lines, $('logMode').value);
+  const view = $('logView');
+  view.textContent = lines.length ? lines.join('\n') : 'No hay líneas con este filtro.';
+  view.scrollTop = view.scrollHeight;
+  $('logSummary').textContent = summarizeLogs(logData.lines) + (lines.length < logData.lines.length ? ' · se ven ' + lines.length : '')
+    + '. Archivo: ' + logData.folder;
+}
+
+async function loadLogs() {
+  if (!desktopLogs()) return;
+  logData = await desktopLogs().get();
+  paintLogs();
+}
+
+async function copyLogs() {
+  if (!logData) await loadLogs();
+  const text = filterLines(logData.lines, $('logMode').value, Infinity).join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    $('logMsg').textContent = 'Copiado (' + text.split('\n').length + ' líneas).';
+  } catch {
+    $('logMsg').textContent = 'El navegador no deja copiar: usa «Guardar en un archivo…».';
+  }
+}
+
+async function saveLogs() {
+  const res = await desktopLogs().save();
+  $('logMsg').textContent = res && res.saved ? 'Guardado en ' + res.saved : 'No se ha guardado nada.';
+}
+
+async function loadPlugins() {
+  if (desktop()) paintPlugins(await desktop().list());
+}
+
 function link(href, text) {
   const a = el('a', '', text);
   a.href = href;
@@ -153,7 +291,7 @@ function link(href, text) {
 function build() {
   const nav = $('setTabs');
   const panels = $('setPanels');
-  for (const tab of TABS) {
+  for (const tab of tabsShown()) {
     const button = el('button', '', tab.label);
     button.type = 'button';
     button.id = 'tab_' + tab.id;
@@ -166,6 +304,11 @@ function build() {
     panel.id = 'panel_' + tab.id;
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-labelledby', button.id);
+    if (tab.id === 'plugins' || tab.id === 'logs') { // not server settings: they talk to the app
+      panel.append(tab.id === 'plugins' ? pluginsPanel() : logsPanel());
+      panels.append(panel);
+      continue;
+    }
     const advanced = el('details', 'adv');
     advanced.append(el('summary', '', 'Fuentes de datos (avanzado)'));
     for (const f of fieldsOf(tab.id)) {
@@ -183,7 +326,7 @@ function build() {
     panels.append(panel);
   }
   nav.addEventListener('keydown', (e) => {
-    const ids = TABS.map((t) => t.id);
+    const ids = tabsShown().map((t) => t.id);
     const i = ids.findIndex((id) => $('tab_' + id).getAttribute('aria-selected') === 'true');
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
@@ -200,7 +343,7 @@ function build() {
 }
 
 function showTab(id) {
-  for (const tab of TABS) {
+  for (const tab of tabsShown()) {
     const on = tab.id === id;
     $('tab_' + tab.id).setAttribute('aria-selected', on ? 'true' : 'false');
     $('tab_' + tab.id).tabIndex = on ? 0 : -1;
@@ -402,6 +545,8 @@ async function open() {
   showTab('ai');
   dlg().showModal();
   loadModels();
+  loadPlugins();
+  loadLogs();
 }
 
 /**

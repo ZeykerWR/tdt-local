@@ -1,0 +1,17 @@
+{
+  "name": "tdt-local-desktop",
+  "private": true,
+  "version": "1.2.0",
+  "type": "module",
+  "description": "TDT local como aplicación de escritorio: ventana propia (Electron), servidor Python dentro y plugins.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
