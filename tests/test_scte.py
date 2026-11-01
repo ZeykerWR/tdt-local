@@ -508,6 +508,13 @@ class ScanTests(AppCase):
         self.assertIn("Canal C", scan["error"])
         self.assertTrue(scan["last"])
 
+    def test_a_scan_skips_what_is_left_once_the_app_closes(self):
+        """The pool's threads hold the process open until the whole queue is done, so closing must drain it."""
+        self.app.scte._stop.set()
+        self.assertTrue(self.app.scte.scan())
+        self.assertEqual(self.app.scte.log.all(), [])
+        self.assertEqual(self.app.scte.status()["scan"]["done"], 0)
+
     def test_the_list_scope_only_looks_at_the_named_channels(self):
         self.app.config.scte_scope = "list"
         self.app.config.scte_channels = "  canal b , A "  # by name or id, any case, extra spaces

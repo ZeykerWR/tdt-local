@@ -3,6 +3,32 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); el proyecto sigue
 [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Funciones
+- **Servidor congelado para la aplicación de escritorio** (`python packaging/build.py --server-only`, entrada
+  `packaging/server.py` y `packaging/tdt-local-server.spec`): el servidor solo, con PyInstaller, que la app de Electrón
+  llevará dentro en lugar de usar el Python del sistema. Con `TDT_SERVER_EXE` la app de desarrollo lo usa para probar
+  ese camino. Los instaladores de siempre no cambian.
+
+- **La aplicación de escritorio se puede empaquetar** (`npm run pack` en `desktop/`, con `@electron/packager`): una carpeta
+  con el ejecutable `tdt-local`, el servidor congelado, los plugins que vienen con ella y el icono, sin los idiomas de
+  Chromium que no se usan. Todavía sin instaladores. Comprobado en Windows: arranca, usa el servidor congelado, un segundo
+  lanzamiento cede el paso al primero y al salir no queda ningún proceso.
+
+### Correcciones
+- **Aplicación de escritorio: se perdían favoritos, último canal y volumen al cerrarla.** Cada arranque elegía un puerto
+  distinto y la página guarda esas preferencias por origen (que incluye el puerto). Ahora la app recuerda el último puerto,
+  lo pide primero y luego prueba del 8790 al 8799; solo si todos están ocupados usa otro (y lo anota en el Registro).
+- **El servidor no se cerraba al pedírselo mientras se exploraban marcas de anuncios o se comprobaban canales.** Los hilos
+  de esos dos recorridos mantienen vivo el proceso hasta vaciar su cola (cientos de canales con hasta 8 s de espera
+  cada uno), así que «Salir» o cerrar la ventana de la aplicación de escritorio acababa a la fuerza tras 5 s, sin
+  guardar el estado. Ahora, al cerrar, lo que queda en cola se salta y el servidor sale solo (código 0) en un par de
+  segundos. Con dos pruebas nuevas.
+- Lo que guarda Electrón (almacenamiento de la página, estado de los plugins, registro) pasa a la subcarpeta `desktop/`
+  de la carpeta de datos de TDT local, la misma que usa el servidor, en lugar de `%APPDATA%\tdt-local-desktop`. El
+  estado de los plugins se copia solo la primera vez.
+
 ## [1.2.0] — 2026-11-01
 
 Primer prototipo de la aplicación de escritorio con ventana propia y plugins, más U7D («últimos 7 días») y el Registro.

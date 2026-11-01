@@ -170,6 +170,19 @@ class HealthTests(AppCase):
         self.assertFalse(store.status[self.origin.url("/missing.m3u8")]["ok"])
         self.assertTrue((self.app.config.data_dir / "status.json").exists())
 
+    def test_a_check_skips_what_is_left_once_the_app_closes(self):
+        """The pool's threads hold the process open until the whole queue is done, so closing must drain it."""
+        store = self.app.store
+        store.channels = [{"id": "a", "sources": [self.origin.url("/ok.m3u8")], "fmts": [""], "logo": "", "kind": "tv"}]
+        self.app.close()
+        self.assertTrue(self.health.start("tv"))
+        deadline = time.time() + 10
+        while store.health["running"] and time.time() < deadline:
+            time.sleep(0.02)
+        self.assertFalse(store.health["running"])
+        self.assertEqual(store.health["done"], 0)
+        self.assertNotIn("/ok.m3u8", [p for p, _ in self.origin.requests])
+
     def test_only_one_check_at_a_time(self):
         self.app.store.health["running"] = True
         self.assertFalse(self.health.start("tv"))

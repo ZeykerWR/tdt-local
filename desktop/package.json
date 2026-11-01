@@ -6,9 +6,11 @@
   "description": "TDT local como aplicación de escritorio: ventana propia (Electron), servidor Python dentro y plugins.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "node build.mjs"
   },
   "devDependencies": {
+    "@electron/packager": "^20.3.0",
     "electron": "^45.2.1"
   },
   "engines": {

@@ -7,10 +7,18 @@ import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, session, 
 import { CACHE_MS, PLUGIN_ID, Reading, SLUGS, allowedAddress, listUrl, watchAddress } from './lib/atres.js';
 import { Logbook, levelOf } from './lib/logbook.js';
 import { discover, readEnabled, scriptsFor, writeEnabled } from './lib/plugins.js';
-import { REPO_ROOT, startServer, stopServer } from './lib/server.js';
+import { copyIfMissing, dataDirFor, desktopDirFor, readPort, writePort } from './lib/paths.js';
+import { PREFERRED_PORTS, REPO_ROOT, serverCommandFor, startServer, stopServer } from './lib/server.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
-const ICON = join(REPO_ROOT, 'packaging', 'icons', 'icon-256.png');
+const ICON = app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(REPO_ROOT, 'packaging', 'icons', 'icon-256.png');
+
+// What Chromium and the app keep lives inside the data folder of the server, and this must be set before anything reads
+// it (the single-instance lock does). Before 1.3 it was %APPDATA%\tdt-local-desktop: the plugin choices come along.
+const DATA_DIR = dataDirFor({ packaged: app.isPackaged, repoRoot: REPO_ROOT });
+const previousUserData = app.getPath('userData');
+app.setPath('userData', desktopDirFor(DATA_DIR));
+copyIfMissing(join(previousUserData, 'plugins.json'), join(app.getPath('userData'), 'plugins.json'));
 
 let server = null;
 let logbook = new Logbook(); // in memory until the app is ready and knows where its folder is
@@ -111,8 +119,7 @@ function watch(contents, label) {
 }
 
 function serverCommand() {
-  if (app.isPackaged) throw new Error('el servidor empaquetado todavía no está en la aplicación instalada');
-  return { file: process.env.TDT_PYTHON || (process.platform === 'win32' ? 'python' : 'python3'), args: ['-m', 'tdtlocal'], cwd: REPO_ROOT, env: {} };
+  return serverCommandFor({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, repoRoot: REPO_ROOT, dataDir: DATA_DIR });
 }
 
 function setPlugin(id, on) {
@@ -368,7 +375,16 @@ else {
       + ' · ' + process.platform + ' ' + process.arch + (app.isPackaged ? '' : ' · desarrollo'));
     loadPlugins();
     try {
-      server = await startServer(serverCommand(), { onLine: (line) => log('servidor', levelOf(line), line) });
+      const portFile = join(app.getPath('userData'), 'port.json');
+      const remembered = readPort(portFile);
+      server = await startServer(serverCommand(), {
+        onLine: (line) => log('servidor', levelOf(line), line),
+        ports: [remembered, ...PREFERRED_PORTS],
+      });
+      if (remembered && server.port !== remembered) {
+        log('app', 'WARN', 'el puerto ' + remembered + ' estaba ocupado: se usa el ' + server.port + ' y la página empieza sin lo que guardó');
+      }
+      writePort(portFile, server.port);
       log('app', 'INFO', 'servidor listo en ' + server.url);
     } catch (error) {
       log('app', 'ERROR', 'el servidor no arrancó: ' + (error.message || error));

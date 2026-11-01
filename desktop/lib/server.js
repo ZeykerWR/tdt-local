@@ -18,6 +18,41 @@ export function freePort() {
   });
 }
 
+/**
+ * How to start the server. Installed: the frozen server that travels in `resources/server/`. In development: `python -m
+ * tdtlocal` from the repository, or the frozen one from `TDT_SERVER_EXE` (to try the installed path without installing).
+ */
+export function serverCommandFor({ packaged, resourcesPath, repoRoot, dataDir, env = process.env, platform = process.platform }) {
+  const exeName = platform === 'win32' ? 'tdt-local-server.exe' : 'tdt-local-server';
+  const frozen = env.TDT_SERVER_EXE || (packaged ? join(resourcesPath, 'server', exeName) : '');
+  const common = { env: { TDT_DATA_DIR: dataDir } };
+  if (frozen) return { file: frozen, args: [], cwd: dirname(frozen), ...common };
+  return { file: env.TDT_PYTHON || (platform === 'win32' ? 'python' : 'python3'), args: ['-m', 'tdtlocal'], cwd: repoRoot, ...common };
+}
+
+/** Ports tried (in this order) the first time, before asking the system for any: outside the range it hands out. */
+export const PREFERRED_PORTS = [8790, 8791, 8792, 8793, 8794, 8795, 8796, 8797, 8798, 8799];
+
+/** Can we listen on this port right now? */
+export function isPortFree(port) {
+  return new Promise((resolve) => {
+    const probe = createServer();
+    probe.once('error', () => resolve(false));
+    probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+  });
+}
+
+/**
+ * The first of `wanted` that is free, or any free port. The page keeps favourites, volume and the last channel per
+ * origin (which includes the port), so the app asks for the same port every time and only gives it up if it is taken.
+ */
+export async function pickPort(wanted, { isFree = isPortFree, anyFree = freePort } = {}) {
+  for (const port of wanted) {
+    if (Number.isInteger(port) && (await isFree(port))) return port;
+  }
+  return anyFree();
+}
+
 /** Does a TDT local server answer on this port? */
 export async function isTdtLocal(port, fetchImpl = fetch) {
   try {
@@ -44,8 +79,8 @@ export async function waitForServer(port, { timeoutMs = 30000, aborted = () => f
  * installed app will carry the packaged server instead.
  * @returns {{port: number, child: import('node:child_process').ChildProcess, url: string, exited: () => boolean}}
  */
-export async function startServer(command, { onLine = () => {} } = {}) {
-  const port = await freePort();
+export async function startServer(command, { onLine = () => {}, ports = [] } = {}) {
+  const port = await pickPort(ports);
   const child = spawn(command.file, [...command.args, '--port', String(port), '--quit-button'], {
     cwd: command.cwd,
     env: { ...process.env, PYTHONUTF8: '1', ...command.env },

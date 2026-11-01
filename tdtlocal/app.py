@@ -33,7 +33,7 @@ class App:
         self.store = Store(config, self.net)
         self.feeds = FeedSyncer(config, self.store, self.net)
         self.epg = EpgSyncer(config, self.store, self.net)
-        self.health = HealthChecker(self.store, self.net)
+        self.health = HealthChecker(self.store, self.net, stop=self.stop)
         self.u7d = U7d(self.net, self._allow_cover)
         self.scte = ScteWatcher(config, self.store, self.net)
         self.assistant = Assistant(config, self.store)

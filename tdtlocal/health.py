@@ -25,10 +25,13 @@ Result = dict[str, object]
 
 
 class HealthChecker:
-    def __init__(self, store: Store, net: Net, workers: int = CHECK_WORKERS) -> None:
+    def __init__(
+        self, store: Store, net: Net, workers: int = CHECK_WORKERS, stop: threading.Event | None = None
+    ) -> None:
         self.store = store
         self.net = net
         self.workers = workers
+        self.stop = stop or threading.Event()  # the app's: set when it closes, so a check under way skips what is left
 
     # ---- single probes
     def _read_playlist(self, url: str) -> tuple[list[str], str]:
@@ -105,6 +108,8 @@ class HealthChecker:
         results: dict[str, Result] = {}
 
         def work(item: tuple[str, str]) -> None:
+            if self.stop.is_set():  # the pool's threads keep the process alive until its queue is empty: empty it
+                return
             results[item[0]] = self.probe(*item)
             with store.lock:
                 store.health["done"] += 1

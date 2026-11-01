@@ -3,6 +3,7 @@
 
     python -m pip install pyinstaller          # certifi too, on macOS and Linux, for HTTPS certificates
     python packaging/build.py
+    python packaging/build.py --server-only    # only dist/tdt-local-server/, the server the Electron app carries
 
 Windows : ``tdt-local-<version>-windows-x64-setup.exe`` (Inno Setup 6) and a portable ``.zip``
 macOS   : ``tdt-local-<version>-macos-<arch>.dmg``
@@ -33,6 +34,7 @@ DIST = ROOT / "dist"
 OUT = DIST / "installers"
 APP_NAME = "TDT local"
 SLUG = "tdt-local"
+SERVER_SLUG = "tdt-local-server"  # the server alone, for the Electron app (see docs/DESKTOP.md)
 
 DESCRIPTION = "Visor local de la TDT española y la radio, con guía, multivisión, subtítulos y asistente de IA local."
 HOMEPAGE = os.environ.get("TDT_HOMEPAGE", "https://github.com/cibernicola/tdt-local")
@@ -131,8 +133,8 @@ def python_licence() -> Path | None:
     return None
 
 
-def pyinstaller(version: str) -> Path:
-    """Freeze the app; returns the directory with the result (``dist/tdt-local`` or the ``.app`` parent)."""
+def pyinstaller(version: str, spec: str = "tdt-local.spec", name: str = SLUG) -> Path:
+    """Freeze ``spec``; returns the directory with the result (``dist/<name>``, or the ``.app`` parent)."""
     env = dict(os.environ, TDT_VERSION=version)
     licence = python_licence()
     if not licence:  # the interpreter is redistributed inside the installer, so its licence must travel with it
@@ -153,11 +155,11 @@ def pyinstaller(version: str) -> Path:
             DIST,
             "--workpath",
             BUILD / "pyinstaller",
-            PACKAGING / "tdt-local.spec",
+            PACKAGING / spec,
         ],
         env=env,
     )
-    app_dir = DIST / SLUG
+    app_dir = DIST / name
     # PyInstaller 6 puts data files under _internal/: also leave the licences where a user will look for them
     (app_dir / "licenses").mkdir(exist_ok=True)
     shutil.copy2(staged, app_dir / "licenses" / staged.name)
@@ -324,6 +326,9 @@ BUILDERS = {"win32": build_windows, "darwin": build_macos, "linux": build_linux}
 
 
 def main() -> int:
+    if "--server-only" in sys.argv[1:]:  # just the server for the Electron app: dist/tdt-local-server/
+        print(f"\nServidor: {pyinstaller(read_version(), 'tdt-local-server.spec', SERVER_SLUG)}")
+        return 0
     builder = BUILDERS.get("linux" if sys.platform.startswith("linux") else sys.platform)
     if builder is None:
         print(f"plataforma no soportada: {sys.platform}", file=sys.stderr)

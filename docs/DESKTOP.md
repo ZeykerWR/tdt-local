@@ -170,7 +170,8 @@ La primera vez descarga el Chromium de Electron (unos 100 MB). Se abre la ventan
 bandeja, y **Ajustes ▸ Plugins** (pestaña que solo existe en la app) lista los plugins que encuentra, **todos
 desactivados**, con lo que hace cada uno, en qué sitios actúa y de dónde viene; el menú **Plugins** de la bandeja hace lo
 mismo. Los plugins son los que añadas tú en
-`<datos de la app>/plugins/<nombre>/` (en Windows, `%APPDATA%\tdt-local-desktop\plugins`), los de `TDT_PLUGINS_DIR` y,
+`<datos de la app>/plugins/<nombre>/` (la carpeta `desktop` dentro de los datos de TDT local, ver
+[Dónde guarda las cosas](#dónde-guarda-las-cosas)), los de `TDT_PLUGINS_DIR` y,
 en desarrollo, las carpetas con `manifest.json` de `tools/` (el puente de Atresplayer). Desde la pestaña, marcar un
 plugin lo guarda y ofrece «Recargar ahora» (los scripts se inyectan al cargar la página); desde la bandeja recarga solo.
 La pestaña tiene además «Abrir la carpeta de plugins» y «Buscar de nuevo» (para plugins recién copiados). El botón «Salir»
@@ -190,9 +191,53 @@ ninguno. Al cerrar la ventana se cierra también el servidor Python y no queda n
 
 **Registro:** `desktop/lib/logbook.js` guarda las últimas 2000 líneas en memoria y en `<datos de la app>/logs/` (rotado a 1 MB). Recoge el arranque, los plugins, la ventana de exploración, la salida del servidor Python, los mensajes de la consola de la página (los de los reproductores de dentro, solo avisos, errores y las líneas del puente) y los fallos de red una vez por dirección y sin parámetros. **Ajustes ▸ Registro** lo muestra con filtro y permite copiarlo, guardarlo o abrir su carpeta; `window.tdtDesktop.logs` lo expone solo a la página de TDT local, y el proceso principal lo comprueba en cada llamada.
 
-**Todavía no hay:** empaquetado (la app instalada llevaría el servidor de PyInstaller dentro), pantalla de plugins en
-Ajustes (hoy solo el menú de la bandeja), migración de los datos de la app instalada actual, actualizaciones, ni pruebas
-de audio/vídeo con un canal real dentro de Electron más allá de la carga del reproductor.
+### Dónde guarda las cosas
+
+- **El servidor y la app comparten una carpeta de datos**: `TDT_DATA_DIR` si existe; la del usuario cuando esté
+  instalada (la misma que usa la app instalada de hoy: `%LOCALAPPDATA%\TDT local`, `~/Library/Application Support/TDT
+  local` o `~/.local/share/tdt-local`); `data/` junto al código en desarrollo. Lo de Electrón (el almacenamiento de la
+  página, el estado de los plugins, el registro) va en su subcarpeta `desktop/`, de modo que se va con ella.
+- **El puerto es siempre el mismo.** La página guarda favoritos, último canal y volumen **por origen, y el origen
+  incluye el puerto**; con un puerto nuevo en cada arranque (así era el primer prototipo) se perdía todo al cerrar. Ahora
+  la app recuerda el último puerto (`desktop/port.json`), lo pide primero, luego prueba del 8790 al 8799 y solo si todos
+  están ocupados pide uno cualquiera (y lo anota en el Registro, porque ese arranque empieza sin lo guardado).
+- Antes de la 1.3 la app usaba `%APPDATA%\tdt-local-desktop`: al arrancar copia de allí el estado de los plugins si
+  aún no existe el nuevo. Lo demás (por ejemplo la respuesta al aviso de cookies de Atresplayer) no se copia.
+
+### El servidor congelado
+
+La app instalada no usará el Python del sistema: llevará el servidor congelado con PyInstaller en `resources/server/`.
+Se construye aparte con `python packaging/build.py --server-only` (hace falta `pip install pyinstaller certifi`) y deja
+`dist/tdt-local-server/`; es el mismo programa que `python -m tdtlocal`, sin abrir el navegador. Tiene consola para que
+la app lea lo que escribe (el Registro) y la app lo arranca oculto, así que no sale ninguna ventana. Para probar este
+camino sin instalar nada, `TDT_SERVER_EXE=<ruta al tdt-local-server.exe> npm start` hace que la app de desarrollo use ese
+ejecutable en lugar de `python -m tdtlocal`.
+
+### Empaquetar la app
+
+```bash
+python packaging/build.py --server-only   # dist/tdt-local-server/
+cd desktop
+npm install
+npm run pack                              # dist/electron/TDT local-<sistema>-<arquitectura>/
+```
+
+`desktop/build.mjs` usa `@electron/packager` y mete en la app: el código de `desktop/` dentro de `app.asar`, y al lado, en
+`resources/`, el servidor congelado (`server/`), los plugins que vienen con ella (`plugins/`: las carpetas de `tools/` con
+`manifest.json`) y el icono de la bandeja y las ventanas (`icon.png`). Quita los idiomas de Chromium que la interfaz no
+usa (se queda con español e inglés; unos 50 archivos) y pone el ejecutable como `tdt-local` (`tdt-local.exe` en Windows,
+el mismo nombre que ya usa el instalador de hoy). La versión sale de `tdtlocal/__init__.py`; una prueba comprueba que
+`desktop/package.json` dice lo mismo, así que al subir de versión hay que cambiar los dos.
+
+Se empaqueta para el sistema en el que se ejecuta (el servidor congelado también es nativo). La app empaquetada no abre el
+puerto de depuración de desarrollo (`TDT_DEBUG_PORT`), así que se comprueba desde fuera: que arranca, que su servidor es el
+congelado, que un segundo lanzamiento le cede el paso al primero y que al salir no queda ningún proceso. En Windows, sin
+comprimir, la carpeta ronda los 335 MB (Chromium es casi todo).
+
+**Todavía no hay:** instaladores de esta app (el paso siguiente es meterla en Inno Setup, el `.dmg` y los paquetes de
+Linux), migración de los
+favoritos que tengas en tu navegador (son de otro perfil), actualizaciones, ni pruebas de audio/vídeo con un canal real
+dentro de Electrón más allá de la carga del reproductor.
 
 ## Fases propuestas
 

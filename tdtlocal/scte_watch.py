@@ -179,6 +179,7 @@ class ScteWatcher:
         self._lock = threading.Lock()
         self._scan_lock = threading.Lock()
         self._wake = threading.Event()
+        self._stop = threading.Event()  # the app's: set when it closes, so a scan under way skips what is left
         self._scan_requested = False
         self._state: dict[str, Any] = {"running": False, "last": None, "done": 0, "total": 0, "errors": 0, "error": ""}
 
@@ -202,6 +203,7 @@ class ScteWatcher:
 
     def run(self, stop: threading.Event) -> None:
         """Background loop: an active scan every ``scte_interval`` seconds, when the settings ask for one."""
+        self._stop = stop
         next_scan = 0.0
         while not stop.is_set():
             requested, self._scan_requested = self._scan_requested, False
@@ -413,6 +415,8 @@ class ScteWatcher:
             return segment_markers(response.read(SAMPLE_BYTES))
 
     def _scan_one(self, target: dict[str, Any]) -> None:
+        if self._stop.is_set():  # the pool's threads keep the process alive until its queue is empty: empty it
+            return
         try:
             markers = self._probe(target)
         except Exception as exc:
