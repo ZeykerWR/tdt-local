@@ -545,6 +545,25 @@ class SettingsApiTests(ServerCase):
         self.assertEqual(status, 403)
         self.assertEqual(self.app.config.llm_model, "")
 
+    def test_a_refused_request_still_gets_its_answer_when_its_body_arrives_late(self):
+        import socket
+        import time
+
+        body = b'{"llm_model": "x"}'
+        head = (
+            f"POST /api/settings HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\nOrigin: http://evil.example\r\n"
+            f"Content-Type: application/json\r\nContent-Length: {len(body)}\r\n\r\n"
+        ).encode()
+        with socket.create_connection(("127.0.0.1", self.port), timeout=10) as sock:
+            sock.sendall(head)
+            time.sleep(0.3)  # the server has already refused it when the body arrives
+            sock.sendall(body)
+            answer = b""
+            while chunk := sock.recv(4096):
+                answer += chunk
+        self.assertIn(b" 403 ", answer.split(b"\r\n", 1)[0])
+        self.assertEqual(self.app.config.llm_model, "")
+
     def test_locked_settings_cannot_be_changed_through_the_api(self):
         self.app.config.locked = frozenset({"llm_url"})
         status, data = self.post_json("/api/settings", {"llm_url": "http://other/v1"})

@@ -62,6 +62,7 @@ class Handler(BaseHTTPRequestHandler):
     server_version = f"TDTLocal/{__version__}"
     sys_version = ""
     server: TdtServer  # type: ignore[assignment]
+    _body_read = False  # the request body was read: otherwise it is dropped before the connection closes
 
     @property
     def app(self) -> App:
@@ -99,6 +100,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), extra={"Cache-Control": "no-store"})
 
     def _body(self) -> dict[str, Any]:
+        self._body_read = True
         try:
             length = int(self.headers.get("Content-Length") or 0)
             if 0 < length <= MAX_BODY:
@@ -168,6 +170,27 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- POST
     def do_POST(self) -> None:
+        try:
+            self._post()
+        finally:
+            if not self._body_read:
+                self._discard_body()
+
+    def _discard_body(self) -> None:
+        """Drop a request body nobody read (a refused request).
+
+        Closing a connection with unread data makes the system reset it, and on Windows the client may then lose the
+        response (a 403) it was about to read.
+        """
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            if 0 < length <= MAX_BODY:
+                self.connection.settimeout(5)
+                self.rfile.read(length)
+        except (ValueError, OSError):
+            pass
+
+    def _post(self) -> None:
         if not self._guard():
             return
         parts = urllib.parse.urlsplit(self.path)
