@@ -13,6 +13,19 @@ bienvenidas como *issues*.
 - [ ] Metadatos ICY («está sonando…») de las emisoras que los emiten.
 - [ ] Arrastrar un canal de la lista a una casilla concreta del mosaico.
 
+## Ventana y reproductor
+- [ ] **Ventana propia** en lugar de abrir el navegador: modo app de Chrome/Edge (sin dependencias) con un ajuste para
+  elegir; cerrar la ventana podría parar el servidor y sustituir al botón «Salir». pywebview, más adelante y opcional.
+- [ ] **Reproductor ampliable con plugins:** cada casilla como una cadena (audio, vídeo, capas) con módulos que declaran
+  sus ajustes. El sonido y la reacción a las pausas de anuncios serían los primeros.
+- [ ] **Sustituir los anuncios por otro contenido** (otro stream, vídeo o imagen), reescribiendo la lista entre
+  `cue-out` y `cue-in` en el proxy.
+- [ ] **Modo compatible con ffmpeg:** reempaquetar o transcodificar los canales con códecs o formatos que el navegador
+  no reproduce (MPEG-2, AC-3, TS crudo), solo en los canales que lo necesiten. mpegts.js como paso intermedio.
+- [x] Igualador de volumen y ecualizador, globales o por canal.
+- [x] Reacción a las pausas de anuncios (silenciar, bajar el sonido, cambiar de canal, mostrar una web).
+- [x] Marcas de anuncios SCTE-35: detección, registro y exportación.
+
 ## Guía de programación
 - [ ] Unos 33 IDs de tele y unos 210 de radio de las listas no están en el XMLTV (locales, `OC_*` de Onda
   Cero…): otra fuente o una tabla de equivalencias.

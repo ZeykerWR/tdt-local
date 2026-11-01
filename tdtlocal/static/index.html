@@ -66,7 +66,9 @@
         <button class="btn" id="btnAsk" type="button" aria-pressed="false" hidden title="Preguntar o dar órdenes a la IA local (Ctrl+K)">Asistente</button>
         <button class="btn" id="btnSub" type="button" aria-pressed="false" hidden title="Subtítulos en directo de la casilla activa, con Whisper (U)">Subtítulos</button>
         <button class="btn" id="btnAlert" type="button" aria-pressed="false" hidden title="Avisarte cuando se diga una palabra en cualquier casilla">Alertas</button>
+        <button class="btn" id="btnScte" type="button" hidden title="Marcas de anuncios (SCTE-35) detectadas en los canales">Marcas</button>
         <button class="btn" id="btnGuide" type="button" aria-pressed="false" title="Programación del canal activo">Guía</button>
+        <button class="btn" id="btnSound" type="button" title="Igualar el volumen y ecualizador, para todos los canales o solo para este">Sonido</button>
         <button class="btn" id="btnFav" type="button" aria-pressed="false">Favorito</button>
         <button class="btn" id="btnPip" type="button">Ventana flotante</button>
         <button class="btn" id="btnFull" type="button">Pantalla completa</button>
@@ -174,6 +176,53 @@
       <button class="btn" type="button" id="setClose">Cerrar</button>
     </div>
   </form>
+</dialog>
+<dialog class="dlg dlg-wide" id="scteDlg" aria-labelledby="scteTitle">
+  <h3 id="scteTitle">Marcas de anuncios (SCTE-35)</h3>
+  <p class="dlg-hint" id="scteStatus" role="status"></p>
+  <p class="dlg-hint" id="scteChannels"></p>
+  <div class="dlg-actions scte-actions">
+    <button class="btn" type="button" id="scteScan">Explorar ahora</button>
+    <a class="btn" href="/api/scte/export?fmt=json" download>Descargar JSON</a>
+    <a class="btn" href="/api/scte/export?fmt=csv" download>Descargar CSV</a>
+    <button class="btn" type="button" id="scteClear">Vaciar el registro</button>
+  </div>
+  <p class="dlg-msg ok" id="scteMsg" role="status"></p>
+  <ul class="scte-list" id="scteList"></ul>
+  <div class="dlg-actions">
+    <button class="btn primary" type="button" id="scteClose">Cerrar</button>
+  </div>
+</dialog>
+<dialog class="dlg dlg-wide" id="soundDlg" aria-labelledby="soundTitle">
+  <h3 id="soundTitle">Sonido</h3>
+  <fieldset class="snd-scope">
+    <legend>Los cambios valen para</legend>
+    <label class="chk"><input type="radio" name="soundScope" id="soundGlobal" value="global"> Todos los canales</label>
+    <label class="chk"><input type="radio" name="soundScope" id="soundChannel" value="channel"> <span id="soundChannelName">Solo este canal</span></label>
+  </fieldset>
+  <section class="snd-sec" aria-labelledby="levelTitle">
+    <h4 id="levelTitle">Igualar el volumen</h4>
+    <label class="chk"><input type="checkbox" id="levelOn"> Igualar el volumen: sube lo que suena bajo y baja lo que suena alto</label>
+    <label>Nivel al que igualar <output id="levelTargetOut"></output>
+      <input type="range" id="levelTarget" min="-40" max="-6" step="1"></label>
+    <label>Lo máximo que puede subir <output id="levelBoostOut"></output>
+      <input type="range" id="levelBoost" min="0" max="24" step="1"></label>
+    <p class="dlg-hint" id="levelRead" role="status"></p>
+    <p class="dlg-hint" id="levelOwn"></p>
+    <button class="btn" type="button" id="levelUseGlobal" hidden>Usar el ajuste de todos los canales</button>
+  </section>
+  <section class="snd-sec" aria-labelledby="eqTitle">
+    <h4 id="eqTitle">Ecualizador</h4>
+    <label class="chk"><input type="checkbox" id="eqOn"> Activar el ecualizador</label>
+    <label>Preajuste <select id="eqPreset"></select></label>
+    <div class="eq-bands" id="eqBands"></div>
+    <p class="dlg-hint" id="eqOwn"></p>
+    <button class="btn" type="button" id="eqUseGlobal" hidden>Usar el ajuste de todos los canales</button>
+  </section>
+  <p class="dlg-hint" id="soundNote"></p>
+  <div class="dlg-actions">
+    <button class="btn primary" type="button" id="soundClose">Cerrar</button>
+  </div>
 </dialog>
 <dialog class="dlg" id="alertDlg" aria-labelledby="alertTitle">
   <form id="alertForm">

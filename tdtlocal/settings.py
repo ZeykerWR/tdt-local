@@ -32,8 +32,12 @@ from .store import read_json, write_json
 log = logging.getLogger(__name__)
 
 FILE_VERSION = 1
-SECTIONS = ("ai", "stt", "lists")
+SECTIONS = ("ai", "stt", "lists", "scte", "ads")
 LANGUAGES = ("es", "ca", "gl", "eu", "en", "fr", "pt", "de", "it", "auto")
+SCTE_SCOPES = ("viewing", "list", "all")
+AD_AUDIO = ("keep", "mute", "lower")
+AD_SCREEN = ("keep", "channel", "web")
+AD_TOUCH = ("respect", "restore")
 URL = re.compile(r"https?://[^\s]+$")
 MAX_URL = 400
 MAX_PATH = 500
@@ -43,7 +47,7 @@ RESERVED_PARAMS = ("messages", "stream")  # the assistant sets these itself
 
 @dataclass(frozen=True)
 class Field:
-    """One setting. ``kind`` is bool, int, float, text, url, path, choice or json."""
+    """One setting. ``kind`` is bool, int, float, text, url, optional_url, path, choice or json."""
 
     name: str
     section: str
@@ -108,6 +112,14 @@ def _url(f: Field, value: Any) -> str:
     return text
 
 
+def _optional_url(f: Field, value: Any) -> str:
+    """Like ``url``, but empty means "none"."""
+    text = _clean_text(f, value)
+    if text and not URL.match(text):
+        raise ValueError("debe ser una dirección http:// o https://")
+    return text
+
+
 def _path(f: Field, value: Any) -> str:
     return _clean_text(f, value)
 
@@ -144,6 +156,7 @@ _VALIDATORS: dict[str, Callable[[Field, Any], Any]] = {
     "float": _number,
     "text": _text,
     "url": _url,
+    "optional_url": _optional_url,
     "path": _path,
     "choice": _choice,
     "json": _json_object,
@@ -178,6 +191,24 @@ FIELDS: tuple[Field, ...] = (
     Field("radio_source", "lists", "url", RADIO_SOURCE, max_length=MAX_URL, affects=("feeds",)),
     Field("epg_tv_source", "lists", "url", EPG_SOURCES["tv"], max_length=MAX_URL, affects=("epg",)),
     Field("epg_radio_source", "lists", "url", EPG_SOURCES["radio"], max_length=MAX_URL, affects=("epg",)),
+    # ad-break markers (SCTE-35)
+    Field("scte_enabled", "scte", "bool", False, affects=("scte",)),
+    Field("scte_scope", "scte", "choice", "viewing", choices=SCTE_SCOPES, affects=("scte",)),
+    Field("scte_channels", "scte", "text", "", max_length=MAX_URL, affects=("scte",)),
+    Field("scte_interval", "scte", "int", 60, 10, 3600, affects=("scte",)),
+    Field("scte_inspect_segments", "scte", "bool", False, affects=("scte",)),
+    Field("scte_notify", "scte", "bool", True),
+    Field("scte_keep", "scte", "int", 2000, 100, 50000, affects=("scte",)),
+    # what to do while an ad break is on (read by the page)
+    Field("ad_enabled", "ads", "bool", False),
+    Field("ad_audio", "ads", "choice", "mute", choices=AD_AUDIO),
+    Field("ad_lower_percent", "ads", "int", 25, 0, 90),
+    Field("ad_screen", "ads", "choice", "keep", choices=AD_SCREEN),
+    Field("ad_channel", "ads", "text", "", max_length=120),
+    Field("ad_web_url", "ads", "optional_url", "", max_length=MAX_URL),
+    Field("ad_min_seconds", "ads", "int", 10, 0, 600),
+    Field("ad_unknown_seconds", "ads", "int", 120, 10, 900),
+    Field("ad_on_touch", "ads", "choice", "respect", choices=AD_TOUCH),
 )
 BY_NAME = {f.name: f for f in FIELDS}
 

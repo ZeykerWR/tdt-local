@@ -12,10 +12,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from . import __version__
+from .ads import web_origin
 from .ai import ModelError
 from .app import App
 from .hls import rewrite_playlist
 from .net import Blocked
+from .scte_routes import handle_get as scte_get
+from .scte_routes import handle_post as scte_post
 from .settings_routes import handle_get, handle_post
 
 log = logging.getLogger(__name__)
@@ -34,7 +37,7 @@ CONTENT_TYPES = {
 CSP = (
     "default-src 'self'; img-src 'self' data:; media-src 'self' blob: data:; connect-src 'self'; "
     "worker-src 'self' blob:; script-src 'self'; style-src 'self'; base-uri 'none'; "
-    "frame-src https://www.youtube-nocookie.com https://www.youtube.com; "
+    "frame-src https://www.youtube-nocookie.com https://www.youtube.com{web}; "
     "form-action 'none'; frame-ancestors 'none'"
 )
 MAX_BODY = 16384
@@ -71,7 +74,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
-        self.send_header("Content-Security-Policy", CSP)
+        origin = web_origin(self.app.config)  # the one web the user chose to show during ad breaks
+        self.send_header("Content-Security-Policy", CSP.format(web=" " + origin if origin else ""))
         super().end_headers()
 
     # ---- helpers
@@ -136,7 +140,7 @@ class Handler(BaseHTTPRequestHandler):
 
         app = self.app
         path = parts.path
-        if handle_get(self, path):
+        if handle_get(self, path) or scte_get(self, path):
             return
         if path == "/api/channels":
             self._json(200, app.channels_payload())
@@ -169,7 +173,7 @@ class Handler(BaseHTTPRequestHandler):
         parts = urllib.parse.urlsplit(self.path)
         app = self.app
         path = parts.path
-        if handle_post(self, path):
+        if handle_post(self, path) or scte_post(self, path):
             return
         if path == "/api/stt":
             if not app.transcriber.available():
@@ -293,6 +297,7 @@ class Handler(BaseHTTPRequestHandler):
                     is_playlist = head == b"#EXTM3U"
                 if is_playlist:
                     text = (head + response.read(MAX_PLAYLIST)).decode("utf-8", "replace").lstrip("﻿")
+                    app.scte.observe(final, text, channel_tag)
                     out = rewrite_playlist(text, final, channel_tag, session_tag, on_url=app.net.allow)
                     self._send(200, out.encode("utf-8"), PLAYLIST_TYPE, {"Cache-Control": "no-store"})
                 else:

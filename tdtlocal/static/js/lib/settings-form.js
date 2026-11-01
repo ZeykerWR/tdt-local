@@ -4,7 +4,32 @@ export const TABS = [
   { id: 'ai', label: 'Asistente de IA' },
   { id: 'stt', label: 'Subtítulos y alertas' },
   { id: 'lists', label: 'Listas y guía' },
+  { id: 'scte', label: 'Marcas de anuncios' },
+  { id: 'ads', label: 'Durante la publicidad' },
 ];
+
+export const SCTE_SCOPES = {
+  viewing: 'Solo lo que estoy viendo (no gasta nada)',
+  list: 'Los canales que indique abajo',
+  all: 'Todos los canales con directo',
+};
+
+export const AD_AUDIO = {
+  keep: 'No tocar el sonido',
+  mute: 'Silenciarlo',
+  lower: 'Bajar el volumen',
+};
+
+export const AD_SCREEN = {
+  keep: 'Dejar la imagen como está',
+  channel: 'Cambiar a otro canal',
+  web: 'Mostrar una web sobre la imagen',
+};
+
+export const AD_TOUCH = {
+  respect: 'Respetar lo que haga: no deshacer nada más',
+  restore: 'Dejarlo todo como estaba al terminar la pausa',
+};
 
 export const LANGUAGES = {
   es: 'Español', ca: 'Català', gl: 'Galego', eu: 'Euskara', en: 'English', fr: 'Français',
@@ -53,6 +78,33 @@ export const FIELDS = [
   { name: 'radio_source', tab: 'lists', type: 'url', label: 'Lista de radio (RADIO.md)', advanced: true },
   { name: 'epg_tv_source', tab: 'lists', type: 'url', label: 'Guía de la tele (XMLTV)', advanced: true },
   { name: 'epg_radio_source', tab: 'lists', type: 'url', label: 'Guía de la radio (XMLTV)', advanced: true },
+
+  { name: 'scte_enabled', tab: 'scte', type: 'bool', label: 'Vigilar marcas de anuncios (SCTE-35)' },
+  { name: 'scte_scope', tab: 'scte', type: 'select', label: 'Qué vigilar', options: SCTE_SCOPES,
+    hint: 'Lo que estás viendo se analiza sin descargar nada más. Una lista o todos los canales se exploran cada cierto tiempo.' },
+  { name: 'scte_channels', tab: 'scte', type: 'text', label: 'Canales a explorar (si has elegido la lista)',
+    hint: 'Nombres o identificadores separados por comas, p. ej.: La 1, Antena 3, laSexta. Ignora mayúsculas y tildes.' },
+  { name: 'scte_interval', tab: 'scte', type: 'number', step: 1, label: 'Segundos entre exploraciones',
+    hint: 'Una marca solo se ve mientras está en la lista de reproducción (unos segundos): cuanto menos tiempo, menos se escapa. Con «todos los canales» conviene 60 o más.' },
+  { name: 'scte_inspect_segments', tab: 'scte', type: 'bool', label: 'Mirar también dentro del vídeo (PID SCTE-35 del TS y eventos emsg)',
+    hint: 'Descarga unos 256 KB de un segmento por canal en cada exploración. Es lo que permite saber si la señal lleva SCTE-35 aunque la lista no diga nada.' },
+  { name: 'scte_notify', tab: 'scte', type: 'bool', label: 'Avisar en pantalla cuando aparezca una marca nueva' },
+  { name: 'scte_keep', tab: 'scte', type: 'number', step: 100, label: 'Marcas que se conservan en el registro' },
+
+  { name: 'ad_enabled', tab: 'ads', type: 'bool', label: 'Reaccionar cuando empiece una pausa de anuncios' },
+  { name: 'ad_audio', tab: 'ads', type: 'select', label: 'Con el sonido', options: AD_AUDIO },
+  { name: 'ad_lower_percent', tab: 'ads', type: 'number', step: 5, label: 'Volumen durante la pausa (% del tuyo)',
+    hint: 'Solo si has elegido bajar el volumen. 0 equivale a silenciar.' },
+  { name: 'ad_screen', tab: 'ads', type: 'select', label: 'Con la imagen', options: AD_SCREEN },
+  { name: 'ad_channel', tab: 'ads', type: 'text', label: 'Canal al que cambiar',
+    hint: 'Nombre o identificador, p. ej. La 2. Al cambiar de canal ya no se ve la señal del anterior, así que se vuelve cuando pasa el tiempo que dice la marca.' },
+  { name: 'ad_web_url', tab: 'ads', type: 'url', label: 'Web que mostrar', test: 'web',
+    hint: 'Se muestra sobre la imagen. Algunas webs no permiten que se muestren dentro de otra página: «Comprobar» lo dice. Solo se permite esta dirección.' },
+  { name: 'ad_min_seconds', tab: 'ads', type: 'number', step: 1, label: 'Ignorar pausas más cortas de (segundos)',
+    hint: 'Solo cuenta si la marca dice cuánto dura.' },
+  { name: 'ad_unknown_seconds', tab: 'ads', type: 'number', step: 5, label: 'Duración que suponer si la marca no la dice (segundos)',
+    hint: 'La reacción termina antes si llega la marca de fin de pausa. Al cambiar de canal, esta es la que manda.' },
+  { name: 'ad_on_touch', tab: 'ads', type: 'select', label: 'Si cambio el volumen o el canal durante la pausa', options: AD_TOUCH },
 ];
 
 export const fieldsOf = (tab) => FIELDS.filter((f) => f.tab === tab);

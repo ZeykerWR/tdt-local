@@ -21,6 +21,46 @@ funciona igual.
 > optional local AI assistant (any OpenAI-compatible server such as llama.cpp) and live subtitles
 > and voice alerts (whisper.cpp). The interface is in Spanish.
 
+## Características y estado
+
+Una por línea. **✅ Hecho**: implementado y con pruebas automáticas. **🧪 Probado poco**: funciona, pero solo se ha
+comprobado en condiciones simuladas o con pocos casos reales. **📋 Pendiente**: aún no existe (la
+[hoja de ruta](ROADMAP.md) tiene más ideas).
+
+| Característica | Estado |
+|---|---|
+| Listas de TDTChannels al día (cada 6 h, con ETag) | ✅ Hecho |
+| Reproducción de directos HLS con proxy local | ✅ Hecho |
+| Radio (unas 980 emisoras, con su logo en lugar de vídeo) | ✅ Hecho |
+| Comprobar qué canales y emisoras responden | ✅ Hecho |
+| Multivisión de cuatro canales con audio rotativo | ✅ Hecho |
+| Guía de programación (EPG) | ✅ Hecho · cubre unos 175 canales de tele y 50 emisoras |
+| Directos de YouTube incrustados | ✅ Hecho |
+| Canales propios, con cabeceras `Origin` y `Referer` | ✅ Hecho |
+| Favoritos, último canal, volumen y filtros (en el navegador) | ✅ Hecho |
+| Ajustes desde la interfaz, sin reiniciar | ✅ Hecho |
+| Aplicación de escritorio (sin consola, botón «Salir») | ✅ Hecho |
+| Asistente de IA local (órdenes y preguntas) | ✅ Hecho · necesita un servidor compatible con OpenAI |
+| Subtítulos en directo con Whisper | 🧪 Probado poco · alucina con música y voces solapadas |
+| Alertas por voz (palabras vigiladas en las cuatro casillas) | 🧪 Probado poco · misma limitación |
+| Instaladores para Windows, macOS y Linux | 🧪 Probado poco · sin firmar; macOS y Linux sin probar en máquinas limpias |
+| Marcas de anuncios SCTE-35 en las listas HLS: detectar, decodificar, guardar y exportar (JSON y CSV) | ✅ Hecho · comprobado con streams reales |
+| Aviso en pantalla cuando aparece una marca nueva | ✅ Hecho |
+| Marcas SCTE-35 dentro del vídeo (PID del MPEG-TS, eventos `emsg`) | 🧪 Probado poco · solo con datos sintéticos |
+| Durante la publicidad: silenciar o bajar el sonido | 🧪 Probado poco · con un directo simulado |
+| Durante la publicidad: cambiar a otro canal y volver | 🧪 Probado poco · con un directo simulado |
+| Durante la publicidad: mostrar una web sobre la imagen, con comprobación previa | 🧪 Probado poco · con un directo simulado |
+| Durante la publicidad: respetar o deshacer lo que toques | 🧪 Probado poco · con un directo simulado |
+| Igualador de volumen (sube lo bajo y baja lo alto hasta un nivel) | 🧪 Probado poco · con señales sintéticas |
+| Ecualizador de diez bandas con preajustes | 🧪 Probado poco · con señales sintéticas |
+| Ajustes de sonido globales y propios de cada canal | ✅ Hecho |
+| Ventana propia en lugar de abrir el navegador | 📋 Pendiente |
+| Controles propios del reproductor: calidad, pistas de audio, estadísticas, «volver al directo», retroceso | 📋 Pendiente |
+| Reproductor ampliable con plugins (el sonido y la reacción a anuncios serían los primeros) | 📋 Pendiente |
+| Sustituir los anuncios por otro contenido | 📋 Pendiente |
+| Modo compatible con ffmpeg para formatos que el navegador no reproduce | 📋 Pendiente |
+| Instaladores firmados, y en winget, Homebrew y APT | 📋 Pendiente |
+
 ## Letra pequeña (con cariño)
 
 **De dónde sale esto.** Empezó como un visor de tele para mi propio PC: uno que no me pidiera abrir seis
@@ -29,7 +69,7 @@ baja?» y aquí estamos: el repositorio es público por vuestra culpa (y me aleg
 hoja de soporte y la versión 1.0.0 se llama así porque el contador tenía que empezar en alguna parte.
 
 **Cómo está hecho.** «Vibecodeado»: lo he ido construyendo conversando con una IA (Claude), yo dirigiendo, probando y
-diciendo «eso no» de vez en cuando. Hay más de 250 pruebas automáticas, lo que demuestra que pasan, no que el código
+diciendo «eso no» de vez en cuando. Hay más de 400 pruebas automáticas, lo que demuestra que pasan, no que el código
 sea perfecto. Funciona en mi máquina™ y también en la CI de GitHub, que ya es algo más que mi máquina.
 
 **Seguridad: sed prudentes.**
@@ -101,6 +141,13 @@ conexión para descargar las listas; después se usa la última copia guardada e
 - **Subtítulos en directo** (`U`) y **alertas por voz**: ffmpeg saca el audio y `whisper-server`
   (whisper.cpp) lo transcribe en tu equipo; el audio no sale de él. Las alertas vigilan palabras en
   las cuatro casillas y, al oír una, resaltan la casilla y le pasan el audio.
+- **Marcas de anuncios (SCTE-35)**, desactivado por defecto: busca la señal con la que las cadenas marcan dónde
+  empieza y acaba la publicidad, avisa en pantalla y guarda cada hallazgo en `data/scte.jsonl` (se puede descargar
+  en JSON o CSV). Ver [más abajo](#marcas-de-anuncios-scte-35). Opcionalmente, mientras dura una pausa, silencia o baja
+  el sonido, cambia a otro canal o muestra una web ([Durante la publicidad](#durante-la-publicidad)).
+- **Sonido** (botón *Sonido*): **igualador de volumen** (sube lo que suena bajo y baja lo que suena alto hasta un nivel
+  que eliges) y **ecualizador** de 10 bandas con preajustes. Ambos se pueden fijar para todos los canales o solo para
+  uno. Ver [más abajo](#sonido).
 - Favoritos, último canal, volumen, filtros, mosaico y rotación se guardan en el navegador. Los
   logos se descargan una vez a `data/logos/`.
 
@@ -133,6 +180,10 @@ El botón **Ajustes** (abajo, en el panel de canales) abre la configuración. To
 
 Los ajustes solo se pueden cambiar desde el propio equipo (aunque uses `--lan`): `whisper-server` es un programa
 que se ejecuta y no debe poder elegirlo cualquiera de tu red.
+
+- **Marcas de anuncios:** activar la vigilancia, qué vigilar (lo que ves, una lista de canales o todos), cada cuántos
+  segundos explorar, mirar también dentro del vídeo, avisar en pantalla y cuántas marcas conservar.
+- **Durante la publicidad:** qué hacer con el sonido y con la imagen cuando empieza una pausa, y qué pasa si tocas algo.
 
 ### Línea de comandos y variables de entorno
 
@@ -182,6 +233,78 @@ ponerlas en `iniciar.local.bat` / `iniciar.local.sh`, que no se suben a git.
 
 Si no hay un `whisper-server` en marcha, TDT local lanza uno y lo apaga tras unos minutos sin uso.
 
+## Marcas de anuncios (SCTE-35)
+
+SCTE-35 es el estándar con el que una emisión marca dónde empieza y acaba una pausa publicitaria; el reproductor o el
+servidor que inserta anuncios lo usa para saber cuándo cortar. TDT local puede buscarlo y dejar constancia. Se activa en
+**Ajustes ▸ Marcas de anuncios** (o con `TDT_SCTE_ENABLED=1`) y, una vez activo, aparece el botón **Marcas**.
+
+Dónde mira:
+
+- **Lo que estás viendo:** cada lista de reproducción que pasa por el proxy se analiza al vuelo, sin descargar nada más.
+  Busca `#EXT-X-CUE-OUT` / `CUE-OUT-CONT` / `CUE-IN`, `#EXT-X-DATERANGE` (con `SCTE35-OUT`, `SCTE35-IN`, anuncios
+  intercalados de HLS u otros metadatos), `#EXT-OATCLS-SCTE35`, `#EXT-X-SCTE35` y variantes. Cuando la marca lleva el
+  mensaje binario, se **decodifica** (`splice_insert`, `time_signal` y sus descriptores de segmentación: duración,
+  tipo de pausa, identificador del evento) y se comprueba su CRC.
+- **Exploración activa:** cada `scte_interval` segundos (60 por defecto) se descarga la lista de los canales que
+  indiques, o de todos los que tienen directo, y se analiza igual. No se tocan los marcados como caídos.
+- **Dentro del vídeo** (opcional): se baja el principio (256 KB) de un segmento por canal y se busca el PID de datos de
+  SCTE-35 en la tabla PMT del MPEG-TS (`stream_type 0x86` o registro `CUEI`) o eventos `emsg` en fMP4. Sirve para saber
+  si la señal *lleva* SCTE-35 aunque la lista de reproducción no lo muestre.
+
+Qué guarda: cada hallazgo (fecha, canal, tipo, detalle, etiqueta original y mensaje decodificado) en `scte.jsonl`,
+una línea por marca y sin repetir la misma marca mientras siga en la lista. Se conservan las últimas 2000 (ajustable).
+La URL se guarda **sin los parámetros de la consulta**, que suelen llevar permisos temporales. El botón **Marcas** abre
+el registro, permite explorar al momento, descargarlo (JSON o CSV) o vaciarlo; mientras está activo, una marca nueva
+resalta el botón y se muestra en pantalla (se puede desactivar).
+
+Lo que no hace: no salta ni bloquea anuncios (la reacción de la siguiente sección solo cambia el sonido o lo que ves
+mientras dura la pausa), y no analiza la señal de radiofrecuencia de la TDT (solo los streams que enlaza TDTChannels).
+Una marca solo vive unos segundos en la lista de reproducción, así que una
+exploración cada minuto puede perder pausas cortas; lo que ves en pantalla se analiza siempre. Que un canal no
+muestre marcas no prueba que no las use: muchas cadenas insertan los anuncios en el servidor y no dejan rastro.
+
+## Sonido
+
+El botón **Sonido** abre un diálogo con dos herramientas, que se pueden usar a la vez:
+
+- **Igualar el volumen:** mide cuánto suena el canal (en una escala tipo LUFS, ponderada como ITU-R BS.1770) y ajusta
+  la ganancia hasta el **nivel al que igualar**. Es un control automático en los dos sentidos: sube los canales que
+  suenan bajos (hasta el máximo que indiques, 12 dB por defecto, para no amplificar ruido) y baja los que suenan altos
+  (hasta 24 dB), rápido cuando llega algo fuerte —un anuncio— y despacio al subir, para que no «bombee». Al sintonizar
+  un canal se adapta en unos segundos. Un limitador evita que lo que sube llegue a saturar. El silencio no se amplifica.
+- **Ecualizador:** diez bandas (31 Hz a 16 kHz, ±12 dB) y preajustes (plano, voz clara, graves, agudos, en V, noche).
+
+Cada ajuste vale **para todos los canales** o **solo para el canal que ves**: un canal con ajuste propio manda sobre el
+global, y cada parte (igualador, ecualizador) se puede dejar propia o volver a la global por separado. Se guardan en el
+navegador. El diálogo muestra en vivo cuánto llega el canal y cuánto lo corrige.
+
+El volumen y el silencio de siempre siguen funcionando igual: el igualador descuenta el volumen que tengas puesto, así
+que bajarlo no hace que el igualador lo suba otra vez. Funciona también con la radio. Límites: el sonido de YouTube no
+se puede procesar (va en un iframe ajeno); el navegador solo permite procesar audio tras un primer clic o tecla en la
+página; y como mide en directo y sin mirar adelante, es un control aproximado, no una normalización EBU R128 estricta.
+
+## Durante la publicidad
+
+Con la vigilancia de marcas activa, **Ajustes ▸ Durante la publicidad** permite que la página reaccione cuando el canal
+que estás viendo entra en una pausa de anuncios. Solo actúa si el canal envía la marca; en la práctica son sobre todo
+canales internacionales.
+
+- **Con el sonido:** no tocarlo, silenciarlo o bajarlo a un porcentaje del volumen que tengas.
+- **Con la imagen:** dejarla, cambiar a otro canal (por nombre o identificador) o mostrar una web sobre la imagen.
+  Algunas webs no permiten que se muestren dentro de otra página: el botón **Comprobar** de los ajustes lo avisa. Solo se
+  permite esa dirección en la política de seguridad de la página.
+- **Cuándo termina:** al llegar la marca de fin de pausa, o cuando pasa la duración que dice la marca (más 3 s). Si la
+  marca no dice cuánto dura, se supone el tiempo que indiques (120 s por defecto). Al cambiar de canal ya no se ve la
+  señal del original, así que allí manda siempre el tiempo.
+- **Pausas cortas:** se ignoran las que dicen durar menos de unos segundos (10 por defecto).
+- **Si tocas algo durante la pausa** (el volumen o el canal): puedes elegir *respetar lo que hagas*, de modo que no se
+  deshaga nada más, o *dejarlo todo como estaba* al terminar la pausa (volumen anterior y canal original).
+
+La reacción se calcula para el momento en que la pausa *se ve*, no cuando se encuentra la marca, que llega a la lista
+unos segundos antes. Si abres el canal con la pausa ya empezada, se une a lo que queda. El canal cambiado no se guarda
+como «último canal visto». Todo es desactivable y está desactivado por defecto.
+
 ## Seguridad
 
 TDT local es una herramienta **personal para tu propio equipo**.
@@ -192,7 +315,8 @@ TDT local es una herramienta **personal para tu propio equipo**.
 - El proxy solo acepta hosts que salen de las listas (o de redirecciones de streams ya validados),
   solo `http(s)`, y rechaza siempre direcciones no públicas (loopback, red local, metadatos de la
   nube).
-- Cabecera `Content-Security-Policy` estricta: sin scripts ni estilos en línea.
+- Cabecera `Content-Security-Policy` estricta: sin scripts ni estilos en línea. Solo se
+  puede incrustar YouTube y, si lo configuras, la web de las pausas de anuncios.
 - El modelo de IA no es de fiar: sus respuestas se validan y solo se aceptan acciones y canales
   de la lista que se le ofreció.
 - `--lan` abre la app a toda tu red local **sin autenticación**: úsalo solo en redes de confianza.

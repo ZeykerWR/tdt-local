@@ -74,7 +74,8 @@ function testBlock(kind) {
   button.type = 'button';
   const result = el('div', 'test-result');
   result.setAttribute('role', 'status');
-  button.addEventListener('click', () => (kind === 'ai' ? testAssistant(button, result) : testWhisper(button, result)));
+  const test = { ai: testAssistant, web: testWeb, stt: testWhisper }[kind];
+  button.addEventListener('click', () => test(button, result));
   box.append(button, result);
   return box;
 }
@@ -121,6 +122,24 @@ function helpBlock() {
   return p;
 }
 
+function scteHelp() {
+  const box = el('div', 'scte-help');
+  box.append(el('p', 'dlg-hint', 'SCTE-35 es la señal con la que una cadena marca dónde empieza y acaba la publicidad. '
+    + 'TDT local la busca en las listas de reproducción (y, si lo activas, dentro del vídeo) y guarda cada hallazgo en un '
+    + 'registro local, scte.jsonl, en la carpeta de datos. No salta ni bloquea nada: solo avisa y guarda.'));
+  const open = el('button', 'btn', 'Ver el registro de marcas…');
+  open.type = 'button';
+  open.addEventListener('click', () => { dlg().close(); hooks.openScte(); });
+  box.append(open);
+  return box;
+}
+
+function adsHelp() {
+  return el('p', 'dlg-hint', 'Lo que hace la página mientras el canal que ves está en una pausa de anuncios. Necesita que la '
+    + 'vigilancia de marcas esté activada en la pestaña anterior, y solo actúa si el canal envía la marca (muchos no lo hacen). '
+    + 'Nada se bloquea ni se salta: el vídeo sigue su curso.');
+}
+
 function link(href, text) {
   const a = el('a', '', text);
   a.href = href;
@@ -152,6 +171,8 @@ function build() {
       if (f.name === 'whisper_model') panel.append(modelsBlock());
     }
     if (tab.id === 'stt') panel.prepend(helpBlock());
+    if (tab.id === 'scte') panel.prepend(scteHelp());
+    if (tab.id === 'ads') panel.prepend(adsHelp());
     if (advanced.children.length > 1) panel.append(advanced);
     const reset = el('button', 'btn reset', 'Restaurar valores de esta pestaña');
     reset.type = 'button';
@@ -283,6 +304,20 @@ async function testAssistant(button, out) {
   $('llmModels').replaceChildren(...d.models.map((m) => new Option(m, m)));
 }
 
+async function testWeb(button, out) {
+  button.disabled = true;
+  out.textContent = 'Comprobando…';
+  out.className = 'test-result';
+  let res;
+  try {
+    res = await requestJson('/api/settings/test/web', 'POST', { url: inputs.get('ad_web_url').value });
+  } catch { res = { data: { ok: false, error: 'El servidor local no responde.' } }; }
+  button.disabled = false;
+  const d = res.data || { ok: false, error: 'Respuesta no válida.' };
+  out.classList.add(d.ok ? 'good' : 'bad');
+  out.textContent = d.ok ? '✔ La web responde y permite mostrarse dentro de la página.' : '✖ ' + d.error;
+}
+
 async function testWhisper(button, out) {
   button.disabled = true;
   out.textContent = 'Comprobando…';
@@ -368,7 +403,7 @@ async function open() {
 }
 
 /**
- * @param {{reload: () => Promise<void>, footMsg: (t: string) => void}} appHooks
+ * @param {{reload: () => Promise<void>, footMsg: (t: string) => void, openScte: () => void}} appHooks
  */
 export function initSettings(appHooks) {
   hooks = appHooks;

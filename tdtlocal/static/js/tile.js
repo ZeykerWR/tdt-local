@@ -2,6 +2,8 @@
 // In single view only the active tile is visible; in multi-view there are four and only the active one has sound.
 import { postStt } from './api.js';
 import { el, fillLogo } from './dom.js';
+import { audioTarget, audioTouched } from './lib/adbreak.js';
+import { chainFor } from './audio.js';
 import { buildPlan, usesHls } from './lib/plan.js';
 import { ytEmbed } from './lib/youtube.js';
 
@@ -25,6 +27,9 @@ const MAX_NETWORK_RETRIES = 3;
  * @property {(c: object, url: string) => void} remember
  * @property {(f: string) => boolean} canPlayFmt
  * @property {(tile: Tile, text: string) => void} spoke - text transcribed on this tile (for voice alerts)
+ * @property {(tile: Tile) => void} fragSeen - the player asked for a segment (an ad-break marker may be waiting for it)
+ * @property {(tile: Tile, v: {v: number, m: boolean}) => void} adVolume - the user changed the audio during an ad break
+ * @property {(c: object | null) => ({level: object, eq: object} | null)} audioFx - leveler and equalizer settings of a channel
  */
 
 export class Tile {
@@ -40,6 +45,9 @@ export class Tile {
     this.hls = null;
     this.timer = null;
     this.session = null;
+    this.duck = null; // audio changed for an ad break: {muted} or {gain}
+    this.adBox = null; // the web shown during an ad break
+    this.chain = null; // Web Audio chain (leveler, equalizer), made when a channel needs it
 
     const root = (this.root = el('div', 'tile'));
     root.tabIndex = 0;
@@ -106,16 +114,66 @@ export class Tile {
     video.addEventListener('volumechange', () => {
       // only what the user does with the single view's controls counts
       if (host.mode() !== 'single' || this.i !== host.focus()) return;
-      host.setVolume({ v: video.volume, m: video.muted });
+      const now = { v: video.volume, m: video.muted };
+      if (!this.duck) { host.setVolume(now); return; }
+      // during an ad break the audio is not the user's: a different value than the one set is the user's doing
+      if (audioTouched(now, this.audioWanted())) host.adVolume(this, now);
     });
   }
 
+  audioWanted() {
+    return audioTarget(this.host.volume(), this.duck, this.i === this.host.focus());
+  }
+
   syncAudio() {
-    const vol = this.host.volume();
-    const muted = this.i !== this.host.focus() || vol.m;
-    this.video.volume = vol.v;
-    this.video.muted = muted;
-    if (this.frame) this.ytCmd(muted ? 'mute' : 'unMute');
+    const want = this.audioWanted();
+    this.video.volume = want.v;
+    this.video.muted = want.m;
+    if (this.frame) this.ytCmd(want.m ? 'mute' : 'unMute');
+    this.syncFx();
+  }
+
+  /** The leveler and equalizer of this tile's channel. The chain is only made when something needs it. */
+  syncFx() {
+    const fx = this.frame ? null : this.host.audioFx(this.c);
+    if (!this.chain && fx && (fx.level.on || fx.eq.on)) this.chain = chainFor(this.video);
+    if (this.chain && fx) this.chain.configure(fx);
+  }
+
+  /** Change the audio for an ad break (`{muted: true}` or `{gain: 0.25}`), or give it back with `null`. */
+  setDuck(duck) {
+    this.duck = duck;
+    this.syncAudio();
+  }
+
+  /** Show a web over the picture (it stays until it is closed, the break ends or the channel changes). */
+  showAdFrame(url) {
+    this.hideAdFrame();
+    const box = el('div', 'tile-ad');
+    const bar = el('div', 'tile-ad-bar');
+    const open = el('a', 'btn', 'Abrir aparte');
+    open.href = url;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
+    const close = el('button', 'btn', '✕');
+    close.type = 'button';
+    close.title = 'Cerrar';
+    close.setAttribute('aria-label', 'Cerrar la web de la pausa');
+    close.addEventListener('click', () => this.hideAdFrame());
+    bar.append(el('span', '', 'Pausa de anuncios'), open, close);
+    const frame = el('iframe', 'tile-ad-frame');
+    frame.title = 'Web durante la pausa de anuncios';
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+    frame.referrerPolicy = 'no-referrer';
+    frame.src = url;
+    box.append(bar, frame);
+    this.root.append(box);
+    this.adBox = box;
+  }
+
+  hideAdFrame() {
+    if (this.adBox) this.adBox.remove();
+    this.adBox = null;
   }
 
   // ---- subtitles
@@ -144,6 +202,7 @@ export class Tile {
       if (!u) return;
       this.fragStart.set(u, frag.start);
       if (this.fragStart.size > 60) this.fragStart.delete(this.fragStart.keys().next().value);
+      this.host.fragSeen(this);
     } catch { /* odd URL */ }
   }
 
@@ -254,6 +313,7 @@ export class Tile {
     this.tag = '';
     this.fragStart.clear();
     this.clearSub();
+    this.hideAdFrame();
     if (this.frame) { this.frame.remove(); this.frame = null; }
     this.root.classList.remove('yt');
     this.video.removeAttribute('src');
@@ -286,6 +346,7 @@ export class Tile {
     this.failed = false;
     this.info = '';
     this.draw();
+    if (this.chain) this.chain.reset(); // another channel: measure it afresh
     this.syncAudio();
     if (!c.sources.length) {
       this.failed = true;

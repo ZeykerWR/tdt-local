@@ -12,7 +12,9 @@ import ipaddress
 import urllib.error
 from typing import TYPE_CHECKING, Any
 
+from .ads import embed_verdict
 from .ai import ModelError
+from .net import Blocked
 from .settings import BY_NAME
 from .stt import diagnose
 from .whisper_models import catalogue, installed_models
@@ -78,6 +80,8 @@ def handle_post(handler: Handler, path: str) -> bool:
         handler._json(200, _test_ai(app, body))
     elif path == "/api/settings/test/stt":
         handler._json(200, _test_stt(app, body))
+    elif path == "/api/settings/test/web":
+        handler._json(200, _test_web(app, body, f"http://{handler.headers.get('Host', '')}"))
     elif path == "/api/whisper/download":
         try:
             started = app.models.start(str(body.get("name") or ""))
@@ -109,6 +113,26 @@ def _test_ai(app: Any, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": f"el servidor contestó HTTP {exc.code}{hint}"}
     except OSError:
         return {"ok": False, "error": f"no responde en {url or app.config.llm_url}"}
+
+
+def _test_web(app: Any, body: dict[str, Any], our_origin: str) -> dict[str, Any]:
+    """Whether the web typed in the dialog answers and lets itself be shown inside our page."""
+    try:
+        url = BY_NAME["ad_web_url"].validate(body.get("url"))
+        if not url:
+            return {"ok": False, "error": "escribe primero una dirección"}
+        with app.net.open(url, None, False, 10) as response:
+            ok, why = embed_verdict(response.headers, our_origin)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+    except Blocked as exc:
+        return {"ok": False, "error": f"no se puede abrir esa dirección ({exc})"}
+    except urllib.error.HTTPError as exc:
+        exc.close()
+        return {"ok": False, "error": f"la web contestó HTTP {exc.code}"}
+    except OSError:
+        return {"ok": False, "error": "la web no responde"}
+    return {"ok": ok, "error": why}
 
 
 def _test_stt(app: Any, body: dict[str, Any]) -> dict[str, Any]:

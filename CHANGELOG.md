@@ -3,6 +3,21 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); el proyecto sigue
 [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Funciones
+- **Marcas de anuncios (SCTE-35)**: vigilancia opcional que detecta, avisa y guarda en `data/scte.jsonl` las marcas de
+  publicidad de los streams HLS (`CUE-OUT/IN`, `DATERANGE`, `OATCLS`…), decodifica el mensaje binario, y puede mirar
+  también el PID SCTE-35 del MPEG-TS y los eventos `emsg`. Nueva pestaña en Ajustes, botón **Marcas** con el registro
+  (descargable en JSON/CSV) y rutas `/api/scte*`.
+- **Sonido**: igualador de volumen (sube lo bajo y baja lo alto hasta un nivel elegido, con tope de subida y limitador)
+  y ecualizador de 10 bandas con preajustes, con ajustes globales y propios de cada canal. Cadena Web Audio por casilla,
+  sin tocar el volumen ni el silencio existentes; el diálogo **Sonido** muestra la medida en vivo.
+- **Durante la publicidad**: nueva pestaña en Ajustes para que la página reaccione cuando el canal que se ve entra en una
+  pausa de anuncios: silenciar o bajar el sonido, cambiar a otro canal o mostrar una web sobre la imagen, volviendo al
+  llegar la marca de fin o al pasar la duración. Respeta (o deshace, a elegir) lo que se toque durante la pausa. Nueva
+  comprobación de que la web se puede mostrar (`/api/settings/test/web`); solo esa web se añade a `frame-src`.
+
 ## [1.0.0] — 2026-10-30
 
 Primera versión publicable.

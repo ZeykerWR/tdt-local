@@ -1,8 +1,12 @@
 // TDT local: page controller (channel list, player deck, multi-view, subtitles and data loading).
+import { adsEvents, adsTuned, adsUserVolume, fragSeen, initAds, setAds } from './adbreak.js';
 import { api, postJson } from './api.js';
 import { initAssistant, isAssistantOpen, toggleAssist } from './assistant.js';
 import { initDialogs } from './dialogs.js';
 import { initSettings } from './settings.js';
+import { onWake } from './audio.js';
+import { initScte, openScte, syncScte } from './scte.js';
+import { audioFx, initSound } from './sound.js';
 import { $, el, fillLogo } from './dom.js';
 import { matchingWords, ALERT_COOLDOWN_MS } from './lib/alerts.js';
 import { nearestSecs } from './lib/commands.js';
@@ -191,10 +195,19 @@ function toggleFav(c) {
 
 /* ------------------------------------------------------------ playback */
 function play(c, onlyUrl) {
+  adsTuned(); // a channel chosen during an ad break is the user's doing
   focusTile().play(c, onlyUrl);
   if (state.mode === 'single') osd(numOf(c) || '', c.name);
   store.set('last', c.id);
   saveMulti();
+  markCurrent(true);
+  updateDeck();
+}
+
+// the channel an ad-break reaction switches to (and back from): shown, but not remembered as the last one watched
+function tune(c) {
+  focusTile().play(c);
+  if (state.mode === 'single') osd(numOf(c) || '', c.name);
   markCurrent(true);
   updateDeck();
 }
@@ -449,6 +462,8 @@ async function load(force) {
   drawMeta(d.channels);
   $('btnAsk').hidden = !(d.meta && d.meta.ai);
   $('btnSub').hidden = $('btnAlert').hidden = !(d.meta && d.meta.stt);
+  setAds(d.meta && d.meta.ads);
+  syncScte(!!(d.meta && d.meta.scte), !!(d.meta && d.meta.ads));
   $('hideDownWrap').hidden = !d.channels.some((c) => c.kind === state.kind && c.ok !== null);
   $('btnQuit').hidden = !(d.meta && d.meta.quit);
   if (d.meta && d.meta.version) $('aboutVersion').textContent = 'TDT local v' + d.meta.version;
@@ -667,6 +682,9 @@ const host = {
   remember(c, url) { state.prefs[c.id] = { u: url }; store.set('prefs', state.prefs); },
   canPlayFmt: (f) => canPlayFormat(audioProbe, f),
   spoke: checkAlerts,
+  fragSeen,
+  adVolume: adsUserVolume,
+  audioFx,
 };
 
 for (let i = 0; i < TILES; i++) state.tiles.push(new Tile(i, host));
@@ -677,7 +695,24 @@ initDialogs({
   setKind, play, load, footMsg, updateDeck, syncStt, syncAlertUi, saveMulti,
   clearActive: () => focusTile().clear(),
 });
-initSettings({ reload: () => load(true), footMsg });
+initAds({
+  focusTile,
+  channels: () => state.channels,
+  volume: () => state.vol,
+  setVolume(v) { state.vol = v; store.set('vol', v); applyAudio(); },
+  tune,
+  say: (text) => osd('📢', text),
+});
+initScte({
+  react: adsEvents,
+  notify(name, text, count) {
+    osd('📢', name + ' · ' + text);
+    footMsg('Marca de anuncios en ' + name + ': ' + text + (count > 1 ? ' (y ' + (count - 1) + ' más)' : '') + '.');
+  },
+});
+initSound({ apply: applyAudio });
+onWake(applyAudio); // the audio context starts with the first click or key: only then can a channel be routed through it
+initSettings({ reload: () => load(true), footMsg, openScte });
 applyLayout();
 syncMultiUi();
 syncKind();

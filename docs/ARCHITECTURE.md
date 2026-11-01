@@ -39,6 +39,10 @@ navegador ──HTTP──▶ server.Handler ──▶ App ─┬─ Store      
 | `health.py` | sondeo de streams (lista ➜ variante ➜ segmento, o primeros bytes de audio) |
 | `ai.py` | preselección de candidatos, petición al modelo y **validación** de su respuesta |
 | `stt.py` | `Transcriber`, `Whisper` (cliente/lanzador), `PcmStream` y `Tap` |
+| `scte.py` | marcas de anuncios SCTE-35, funciones puras: decodificador de `splice_info_section`, etiquetas HLS, PID en MPEG-TS, `emsg` |
+| `scte_watch.py` | `ScteLog` (registro en `scte.jsonl`) y `ScteWatcher` (observa lo que pasa por el proxy y explora canales) |
+| `scte_routes.py` | rutas `/api/scte*`: leer, exportar JSON/CSV, explorar ahora y vaciar |
+| `ads.py` | qué recibe la página para reaccionar a una pausa (`meta.ads`), el origen de la web que se muestra (`frame-src`) y si una web se deja incrustar |
 | `logos.py` | caché de logos con detección de tipo por firma |
 | `util.py` | normalización de texto |
 
@@ -63,6 +67,8 @@ Reglas de diseño:
 4. Si la sesión `s` activó la transcripción, un `Tap` copia el segmento (o el audio continuo) a la
    cola del `Transcriber` sin retrasar la respuesta.
 5. Las cabeceras de un canal propio (`c`) se añaden a la petición al origen y nunca llegan al navegador.
+6. Si la vigilancia de marcas está activa, `ScteWatcher.observe` analiza la lista antes de reescribirla; nunca
+   lanza una excepción, para no estorbar a la reproducción.
 
 ## Interfaz `tdtlocal/static/js/`
 
@@ -76,6 +82,17 @@ clásico que define `Hls` antes.
   *host* con lo que necesita de la aplicación, así que no conoce el estado global.
 - `app.js` — controlador de la página (lista, panel, multivisión, subtítulos, datos y teclado).
 - `guide.js`, `assistant.js`, `dialogs.js` — la guía, el asistente y los diálogos.
+- `scte.js` — el diálogo **Marcas** y el sondeo que avisa en pantalla de las marcas de anuncios nuevas (cada 2 s si hay
+  una reacción configurada, cada 10 s si no).
+- `audio.js` — la cadena de sonido de una casilla con la Web Audio API: `<video>` → ganancia del igualador → 10 filtros
+  del ecualizador → limitador, más una rama que mide la sonoridad (ponderación K) con un `AnalyserNode`. El `<video>`
+  conserva su volumen y su silencio, que se aplican antes de la cadena, y la medida los descuenta. El `<video>` solo se
+  conecta al contexto cuando este ya suena (un contexto suspendido lo dejaría mudo y no se puede deshacer).
+- `sound.js` — el diálogo **Sonido**: ajustes globales y propios de cada canal (`localStorage`), preajustes y medida en vivo.
+  Los ajustes y la matemática del igualador (pura y probada) están en `lib/audio.js`.
+- `adbreak.js` — la reacción a una pausa de anuncios: guarda la pausa en curso y sus temporizadores. Qué hacer con cada
+  marca (cuándo llega, si es tardía, qué audio corresponde, qué canal) lo decide `lib/adbreak.js`, que es puro y está
+  probado. El audio se cambia en la casilla (`Tile.setDuck`), sin tocar el volumen guardado.
 - `dom.js`, `store.js`, `api.js` — utilidades de DOM, de almacenamiento y de red.
 
 ## Ajustes
@@ -98,6 +115,7 @@ coincide con `FIELDS`.
 | `status.json` | resultado de la última comprobación por URL |
 | `custom.json` | canales propios, con sus cabeceras |
 | `settings.json` | ajustes guardados (puede contener la clave de API: permisos 600 donde existen) |
+| `scte.jsonl` | registro de marcas de anuncios, una por línea (se compacta al pasar del límite) |
 | `logos/` | logos descargados (`.fail` = no reintentar durante 6 h) |
 
 Las escrituras son atómicas (fichero temporal + `replace`).

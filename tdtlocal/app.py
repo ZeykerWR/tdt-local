@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from . import __version__
+from . import __version__, ads
 from .ai import Assistant
 from .config import Config
 from .epg import EpgSyncer
@@ -13,6 +13,7 @@ from .feeds import FeedSyncer
 from .health import HealthChecker
 from .logos import LogoCache
 from .net import Net
+from .scte_watch import ScteWatcher
 from .settings import BY_NAME, SettingsStore
 from .store import Store, channel_ok, source_ok
 from .stt import Transcriber
@@ -32,6 +33,7 @@ class App:
         self.feeds = FeedSyncer(config, self.store, self.net)
         self.epg = EpgSyncer(config, self.store, self.net)
         self.health = HealthChecker(self.store, self.net)
+        self.scte = ScteWatcher(config, self.store, self.net)
         self.assistant = Assistant(config, self.store)
         self.transcriber = Transcriber(config)
         self.models = ModelDownloader(config, self.net)
@@ -41,8 +43,10 @@ class App:
         """Load the cache and start the refresh threads."""
         self.config.data_dir.mkdir(parents=True, exist_ok=True)
         self.store.load()
+        self.scte.load()
         threading.Thread(target=self.feeds.run, args=(self.stop, self._after_sync), daemon=True, name="feeds").start()
         threading.Thread(target=self.epg.run, args=(self.stop,), daemon=True, name="epg").start()
+        threading.Thread(target=self.scte.run, args=(self.stop,), daemon=True, name="scte").start()
 
     def _after_sync(self) -> None:
         if self.config.auto_check:  # read now, not at start-up: it can be changed in the settings
@@ -57,6 +61,8 @@ class App:
             self.epg.refresh_soon()
         if "feeds" in affected:
             self.feeds.refresh_soon()
+        if "scte" in affected:
+            self.scte.reconfigure()
 
     def close(self) -> None:
         self.stop.set()
@@ -86,4 +92,6 @@ class App:
         meta["version"] = __version__
         meta["quit"] = self.config.allow_quit
         meta["stt"] = self.transcriber.available()
+        meta["scte"] = self.config.scte_enabled
+        meta["ads"] = ads.payload(self.config)
         return {"meta": meta, "health": health, "channels": out}

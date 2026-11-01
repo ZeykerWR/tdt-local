@@ -773,6 +773,7 @@ class FormSchemaTests(unittest.TestCase):
         "int": "number",
         "float": "number",
         "url": "url",
+        "optional_url": "url",
         "path": "path",
         "choice": "select",
         "json": "json",

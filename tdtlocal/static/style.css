@@ -377,3 +377,38 @@ a.btn { display: inline-block; text-decoration: none; color: inherit; }
 .adv { margin: 10px 0; }
 .adv summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
 .reset { margin-top: 8px; }
+
+/* Ad-break markers (SCTE-35) */
+.btn.alerting { border-color: var(--accent); color: var(--accent); }
+.scte-help { margin-bottom: 12px; display: grid; gap: 6px; justify-items: start; }
+.scte-actions { justify-content: flex-start; flex-wrap: wrap; }
+.scte-actions a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+.scte-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.scte-row { border: 1px solid var(--line); border-left-width: 4px; border-radius: 4px; padding: 6px 10px; }
+.scte-row.cue-out, .scte-row.cue-out-cont { border-left-color: var(--bad); }
+.scte-row.cue-in { border-left-color: var(--ok); }
+.scte-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }
+.scte-head time { color: var(--muted); font-size: 12px; }
+.scte-what { font-size: 13px; }
+.scte-row .dlg-hint { margin: 2px 0 0; overflow-wrap: anywhere; }
+
+/* Sound dialog: volume leveler and equalizer */
+.snd-scope { border: 1px solid var(--line); border-radius: 4px; margin: 0 0 12px; padding: 6px 12px 2px; }
+.snd-scope legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.snd-sec { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+.snd-sec h4 { margin: 0 0 8px; font-size: 14px; }
+.snd-sec label output { color: var(--ink); margin-left: 6px; }
+.snd-sec input[type="range"] { width: 100%; padding: 0; }
+.eq-bands { display: grid; gap: 2px; margin: 4px 0 8px; }
+.eq-row { display: grid; grid-template-columns: 56px 1fr 62px; gap: 8px; align-items: center; font-size: 12px; margin: 0; }
+.eq-row input { padding: 0; }
+.eq-row output { text-align: right; font-variant-numeric: tabular-nums; }
+.snd-sec.off .eq-bands, .snd-sec.off label:not(.chk) { opacity: 0.55; }
+
+/* Web shown over the picture during an ad break; in single view the player's own controls stay reachable */
+.tile-ad { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; background: #000; }
+.tiles.single .tile-ad { bottom: 56px; }
+.tile-ad-bar { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding: 4px 8px; color: #e9ece6; font-size: 13px; background: rgba(0, 0, 0, 0.75); }
+.tile-ad-bar span { margin-right: auto; }
+.tile-ad-bar .btn { background: transparent; color: #e9ece6; border-color: #6d746f; padding: 2px 8px; font-size: 12px; text-decoration: none; }
+.tile-ad-frame { flex: 1; min-height: 0; width: 100%; border: 0; background: #fff; }

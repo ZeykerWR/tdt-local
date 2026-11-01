@@ -64,6 +64,26 @@ class Config:
     whisper_idle_minutes: int = 10  # a whisper-server we launched stops after this long without work
     whisper_autostart: bool = True  # launch our own whisper-server when none answers
 
+    # SCTE-35 / ad-break watcher (see scte_watch.py)
+    scte_enabled: bool = False
+    scte_scope: str = "viewing"  # "viewing" (what is being played), "list" (scte_channels) or "all"
+    scte_channels: str = ""  # comma-separated channel names or ids, for scope "list"
+    scte_interval: int = 60  # seconds between active scans
+    scte_inspect_segments: bool = False  # also download the start of one segment per stream (MPEG-TS PID, emsg)
+    scte_notify: bool = True  # on-screen notice when a new marker is found
+    scte_keep: int = 2000  # events kept in the log
+
+    # what the page does while an ad break is on (see static/js/adbreak.js); needs scte_enabled
+    ad_enabled: bool = False
+    ad_audio: str = "mute"  # "keep", "mute" or "lower" (to ad_lower_percent of the volume)
+    ad_lower_percent: int = 25
+    ad_screen: str = "keep"  # "keep", "channel" (switch to ad_channel) or "web" (show ad_web_url over the picture)
+    ad_channel: str = ""  # name or id of the channel to switch to
+    ad_web_url: str = ""
+    ad_min_seconds: int = 10  # shorter breaks (when they say how long they are) are ignored
+    ad_unknown_seconds: int = 120  # assumed length of a break that does not say how long it lasts
+    ad_on_touch: str = "respect"  # volume or channel changed by hand during a break: "respect" it or "restore" after
+
     allow_private: bool = False  # tests only: lets the proxy reach loopback/private addresses
     # settings fixed by a command-line flag or environment variable: the saved value is ignored
     # and the interface shows them read-only
