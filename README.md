@@ -23,7 +23,7 @@ funciona igual.
 
 ## Capturas
 
-Hechas con la aplicación de escritorio (prototipo, ver [docs/DESKTOP.md](docs/DESKTOP.md)); en el modo navegador es la misma interfaz sin las pestañas Plugins y Registro.
+Hechas con la aplicación de escritorio ([docs/DESKTOP.md](docs/DESKTOP.md)); en el modo navegador es la misma interfaz sin las pestañas Plugins y Registro.
 
 | | |
 |---|---|
@@ -50,12 +50,12 @@ comprobado en condiciones simuladas o con pocos casos reales. **📋 Pendiente**
 | U7D de Atresmedia (Antena 3, laSexta, Neox, Nova, Mega y Atreseries), solo en la aplicación de escritorio y con el plugin `atresplayer-u7d` | 🧪 Probado poco · con la red real en Antena 3: la ventana lee la lista y la grabación se abre en su página; con el DNS de esta máquina (filtra anuncios) la página no reproduce, así que la reproducción no está comprobada |
 | Favoritos, último canal, volumen y filtros (en el navegador) | ✅ Hecho |
 | Ajustes desde la interfaz, sin reiniciar | ✅ Hecho |
-| Aplicación de escritorio (sin consola, botón «Salir») | ✅ Hecho |
-| Aplicación de escritorio con ventana propia (Electrón), bandeja y plugins | 🧪 Probado poco · solo desde el código (`desktop/`), sin instalador; no hay actualizaciones automáticas |
+| Modo navegador: el servidor sin consola y tu navegador, con el botón «Salir» (`--classic` en la construcción, o `python -m tdtlocal`) | ✅ Hecho |
+| Aplicación de escritorio con ventana propia (Electrón), bandeja, plugins y Registro | 🧪 Probado poco · los instaladores la llevan desde la 1.3.0; la CI prueba que arranca, sirve la página y se cierra, pero no se ha visto en máquinas limpias de macOS y Linux; sin actualizaciones automáticas |
 | Asistente de IA local (órdenes y preguntas) | ✅ Hecho · necesita un servidor compatible con OpenAI |
 | Subtítulos en directo con Whisper | 🧪 Probado poco · alucina con música y voces solapadas |
 | Alertas por voz (palabras vigiladas en las cuatro casillas) | 🧪 Probado poco · misma limitación |
-| Instaladores para Windows, macOS y Linux | 🧪 Probado poco · sin firmar; macOS y Linux sin probar en máquinas limpias |
+| Instaladores para Windows, macOS (13 o superior) y Linux | 🧪 Probado poco · sin firmar; pesan unos 100 MB; macOS y Linux sin probar en máquinas limpias |
 | Marcas de anuncios SCTE-35 en las listas HLS: detectar, decodificar, guardar y exportar (JSON y CSV) | ✅ Hecho · comprobado con streams reales |
 | Aviso en pantalla cuando aparece una marca nueva | ✅ Hecho |
 | Marcas SCTE-35 dentro del vídeo (PID del MPEG-TS, eventos `emsg`) | 🧪 Probado poco · solo con datos sintéticos |
@@ -74,7 +74,7 @@ comprobado en condiciones simuladas o con pocos casos reales. **📋 Pendiente**
 | Quitar un canal propio desde su fila de la lista o desde el botón bajo la imagen | ✅ Hecho |
 | Mediaset dentro de TDT local | 📋 Pendiente · su reproductor prohíbe incrustarse; hoy sus canales abren su web |
 | Sacar el enlace de un directo desde tu navegador y añadirlo como canal propio (`tools/capturar-directo.js`) | 🧪 Probado poco · con una página de ejemplo, no con la web real de ninguna cadena |
-| Ventana propia en lugar de abrir el navegador | 📋 Pendiente |
+| Ventana propia en lugar de abrir el navegador | 🧪 Probado poco · es la aplicación de escritorio de arriba |
 | Controles propios del reproductor: calidad, pistas de audio, estadísticas, «volver al directo», retroceso | 📋 Pendiente |
 | Reproductor ampliable con plugins (el sonido y la reacción a anuncios serían los primeros) | 📋 Pendiente |
 | Sustituir los anuncios por otro contenido | 📋 Pendiente |
@@ -102,7 +102,7 @@ sea perfecto. Funciona en mi máquina™ y también en la CI de GitHub, que ya e
   puedas revocar, o pásala por la variable `TDT_LLM_API_KEY`.
 
 **Errores.** Más que probables. Los instaladores no están firmados y los de macOS y Linux no se han probado en
-máquinas limpias. Los enlaces de las cadenas cambian y caducan cuando les da la gana. Los subtítulos con Whisper
+máquinas limpias (la CI arranca la aplicación empaquetada, pero no es lo mismo que instalarla en un equipo de verdad). Los enlaces de las cadenas cambian y caducan cuando les da la gana. Los subtítulos con Whisper
 alucinan con música y con voces solapadas. Si algo se rompe, llámalo «función sin documentar».
 
 **Sin garantías ni parentesco.** Es software libre bajo [Apache 2.0](LICENSE), que dice en mayúsculas que se ofrece
@@ -117,15 +117,15 @@ sobre cómo colaborar en [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Instalar
 
 Descarga el instalador de tu sistema de la página de
-[Releases](https://github.com/cibernicola/tdt-local/releases/latest) (incluye todo lo necesario, no hace falta Python): **Windows** `.exe` (o `.zip` portable), **macOS** `.dmg` (Intel o Apple Silicon), **Linux** `.deb` o `.tar.gz`.
+[Releases](https://github.com/cibernicola/tdt-local/releases/latest) (incluye todo lo necesario, no hace falta Python): **Windows** `.exe` (o `.zip` portable), **macOS 13 o superior** `.dmg` (Intel o Apple Silicon), **Linux** `.deb` o `.tar.gz`. Desde la 1.3.0 instalas **la aplicación de escritorio** (ventana propia con Chromium integrado, icono en la bandeja y plugins), no la que abre tu navegador, y por eso pesan del orden de cien megas.
 Los paquetes no están firmados, así que Windows y macOS avisarán la primera vez: en
-[docs/INSTALLERS.md](docs/INSTALLERS.md) está qué hacer, dónde guarda los datos y cómo se construyen.
+[docs/INSTALLERS.md](docs/INSTALLERS.md) está qué hacer, dónde guarda los datos y cómo se construyen. Si vienes de una versión anterior, tus listas y canales propios se conservan; **los favoritos y el volumen que guardó tu navegador no pasan**, son de otro perfil.
 
 ## Arrancar desde el código
 
 Hace falta Python 3.9 o superior.
 
-**Aplicación de escritorio con plugins (prototipo):** además hace falta Node 20 o superior. `cd desktop`, `npm install` y `npm start`. Los instaladores de la sección anterior todavía no la incluyen: [docs/DESKTOP.md](docs/DESKTOP.md) explica qué hay y qué falta.
+**Aplicación de escritorio con plugins:** además hace falta Node 20 o superior. `cd desktop`, `npm install` y `npm start` (para empaquetarla, `npm run pack` tras `python packaging/build.py --server-only`). [docs/DESKTOP.md](docs/DESKTOP.md) explica cómo es y qué falta.
 
 - **Windows:** doble clic en `iniciar.bat`.
 - **Linux / macOS:** `./iniciar.sh`

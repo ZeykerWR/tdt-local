@@ -106,8 +106,11 @@ con una excepción que permite distribuir los programas generados con cualquier 
 
 ## Qué está comprobado
 
-La CI construye los cuatro instaladores en cada ejecución de `release.yml` (y desde la versión que lleva Electrón
-prueba la app empaquetada). Hasta la 1.2.0 los instaladores eran los de la aplicación que abría el navegador; lo que sigue describe lo que se comprobó de aquellos. Antes se
+La CI construye los cuatro instaladores en cada ejecución de `release.yml` y, desde la 1.3.0 (la primera con Electrón),
+pasa `packaging/smoke.py` a la app empaquetada en Windows, macOS y Linux y al `.deb` instalado. Eso comprueba que
+arranca, sirve la página, cede el paso a un segundo lanzamiento y se cierra; no es una instalación en un equipo limpio.
+Lo que sigue describe lo que se comprobó, a mano, de los instaladores de las versiones anteriores (los de la aplicación
+que abría el navegador). Antes se
 ejecutan las pruebas de Python en Linux, Windows y macOS. El paquete portable de Windows generado por la CI se
 arrancó de verdad (servidor, API, créditos, ajustes y «Salir»). Los `.dmg`, el `.deb`, el `.tar.gz` y el
 `setup.exe` se construyen bien, pero no se han instalado ni abierto en un macOS, un Linux o un Windows limpios:

@@ -3,41 +3,43 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); el proyecto sigue
 [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [1.3.0] — 2026-11-01
+
+**Los instaladores llevan ahora la aplicación de escritorio** (ventana propia, bandeja y plugins) en lugar de abrir tu
+navegador. Pesan del orden de cien megas, no diez.
 
 ### Funciones
-- **Servidor congelado para la aplicación de escritorio** (`python packaging/build.py --server-only`, entrada
-  `packaging/server.py` y `packaging/tdt-local-server.spec`): el servidor solo, con PyInstaller, que la app de Electrón
-  llevará dentro en lugar de usar el Python del sistema. Con `TDT_SERVER_EXE` la app de desarrollo lo usa para probar
-  ese camino. Los instaladores de siempre no cambian.
-
-- **La aplicación de escritorio se puede empaquetar** (`npm run pack` en `desktop/`, con `@electron/packager`): una carpeta
-  con el ejecutable `tdt-local`, el servidor congelado, los plugins que vienen con ella y el icono, sin los idiomas de
-  Chromium que no se usan. Todavía sin instaladores. Comprobado en Windows: arranca, usa el servidor congelado, un segundo
-  lanzamiento cede el paso al primero y al salir no queda ningún proceso.
-
 - **Los instaladores llevan la aplicación de Electrón** (Windows, macOS y Linux): `packaging/build.py` congela el
-  servidor, empaqueta la app y la convierte en el `setup.exe`/`.zip`, el `.dmg` y el `.deb`/`.tar.gz`. El instalador de
-  Windows mantiene su identidad y limpia la carpeta `_internal` de la versión anterior, así que actualiza encima;
-  los datos son los mismos. En Linux el `.deb` deja `chrome-sandbox` con los permisos que pide Chromium y el
-  `install.sh` del `.tar.gz` crea un lanzador que usa `--no-sandbox` solo si el sistema no permite otra cosa. Piden
-  macOS 13 o superior y, el `.deb`, glibc 2.35. `python packaging/build.py --classic` construye aún la app de antes.
+  servidor, empaqueta la app y la convierte en el `setup.exe` y el `.zip`, el `.dmg` y el `.deb` y el `.tar.gz`. El
+  instalador de Windows mantiene su identidad y limpia la carpeta `_internal` de la versión anterior, así que actualiza
+  encima, y los datos son los mismos. Piden **macOS 13 o superior** (lo exige Electrón 44 y posteriores) y, el `.deb`,
+  glibc 2.35. En Linux, el `.deb` deja `chrome-sandbox` con los permisos que pide Chromium y el `install.sh` del
+  `.tar.gz` crea un lanzador que usa `--no-sandbox` solo si el sistema no permite otra forma de aislamiento.
+  `python packaging/build.py --classic` construye aún la aplicación de antes (solo el servidor y tu navegador).
+- **Servidor congelado para la aplicación** (`python packaging/build.py --server-only`; `packaging/server.py` y
+  `packaging/tdt-local-server.spec`): el servidor solo, con PyInstaller, que la app lleva dentro en lugar de usar el
+  Python del sistema. En desarrollo, `TDT_SERVER_EXE` lo usa para probar ese camino.
+- **La aplicación se puede empaquetar** (`npm run pack` en `desktop/`, con `@electron/packager`): el ejecutable
+  `tdt-local`, el servidor congelado, los plugins que vienen con ella y el icono, sin los idiomas de Chromium que no se
+  usan.
 - **`packaging/smoke.py`**, una prueba de humo de la app empaquetada (arranca, sirve la página, un segundo lanzamiento
   cede el paso y al salir se cierra todo), que la CI pasa en los tres sistemas y, en Linux, también sobre el `.deb`
   instalado.
 
 ### Correcciones
 - **Aplicación de escritorio: se perdían favoritos, último canal y volumen al cerrarla.** Cada arranque elegía un puerto
-  distinto y la página guarda esas preferencias por origen (que incluye el puerto). Ahora la app recuerda el último puerto,
-  lo pide primero y luego prueba del 8790 al 8799; solo si todos están ocupados usa otro (y lo anota en el Registro).
+  distinto y la página guarda esas preferencias por origen (que incluye el puerto). Ahora la app recuerda el último
+  puerto, lo pide primero y luego prueba del 8790 al 8799; solo si todos están ocupados usa otro (y lo anota en el
+  Registro). Lo que había en tu navegador no pasa: es de otro perfil.
 - **El servidor no se cerraba al pedírselo mientras se exploraban marcas de anuncios o se comprobaban canales.** Los hilos
-  de esos dos recorridos mantienen vivo el proceso hasta vaciar su cola (cientos de canales con hasta 8 s de espera
-  cada uno), así que «Salir» o cerrar la ventana de la aplicación de escritorio acababa a la fuerza tras 5 s, sin
-  guardar el estado. Ahora, al cerrar, lo que queda en cola se salta y el servidor sale solo (código 0) en un par de
-  segundos. Con dos pruebas nuevas.
+  de esos dos recorridos mantienen vivo el proceso hasta vaciar su cola (cientos de canales con hasta 8 s de espera cada
+  uno), así que «Salir» o cerrar la ventana acababa a la fuerza tras 5 s, sin guardar el estado. Ahora, al cerrar, lo que
+  queda en cola se salta y el servidor sale solo (código 0) en un par de segundos. Con dos pruebas nuevas.
+
+### Cambios
 - Lo que guarda Electrón (almacenamiento de la página, estado de los plugins, registro) pasa a la subcarpeta `desktop/`
   de la carpeta de datos de TDT local, la misma que usa el servidor, en lugar de `%APPDATA%\tdt-local-desktop`. El
-  estado de los plugins se copia solo la primera vez.
+  estado de los plugins se copia solo la primera vez; la respuesta al aviso de cookies de Atresplayer no.
 
 ## [1.2.0] — 2026-11-01
 

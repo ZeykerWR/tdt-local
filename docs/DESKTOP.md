@@ -1,8 +1,9 @@
 # Aplicación de escritorio con ventana propia y plugins (esbozo de diseño)
 
-> **Estado: prototipo en `desktop/`.** Hay una primera versión que arranca (ventana de Electron, servidor Python dentro,
-> bandeja y cargador de plugins con el puente de Atresplayer como primer plugin). Solo funciona en desarrollo
-> (ver [Probarlo](#probarlo)); el resto de este documento es el diseño y marca lo que falta.
+> **Estado: en `desktop/`, empaquetada desde la 1.3.0.** Ventana de Electron con el servidor congelado dentro, bandeja,
+> plugins (con el puente de Atresplayer como primero) y Registro. Los instaladores la llevan; sigue siendo joven (sin
+> firmar, sin actualizaciones automáticas, probada a fondo solo en Windows). Se puede probar desde el código
+> ([Probarlo](#probarlo)); el resto de este documento es el diseño y marca lo que falta.
 
 ## Por qué
 
@@ -236,10 +237,11 @@ comprimir, la carpeta ronda los 335 MB (Chromium es casi todo).
 
 ### Instaladores
 
-`python packaging/build.py` ya construye con esta app los instaladores de siempre (Inno Setup, `.dmg`, `.deb` y
-`.tar.gz`; ver [INSTALLERS.md](INSTALLERS.md)) y `packaging/smoke.py` prueba la app empaquetada. **Ninguna release los
-ha publicado todavía** (la primera será la 1.3.0), y lo comprobado a mano es solo la carpeta empaquetada y el `.zip`
-portable en Windows: el `setup.exe`, el `.dmg`, el `.deb` y el `.tar.gz` los construye la CI.
+`python packaging/build.py` construye con esta app los instaladores de siempre (Inno Setup, `.dmg`, `.deb` y
+`.tar.gz`; ver [INSTALLERS.md](INSTALLERS.md)) y `packaging/smoke.py` prueba la app empaquetada; la CI lo hace en
+los tres sistemas y, en Linux, también con el `.deb` instalado. Los publicó por primera vez la 1.3.0. A mano solo se
+ha visto la carpeta empaquetada y el `.zip` portable en Windows: el `setup.exe`, el `.dmg`, el `.deb` y el `.tar.gz`
+los construye la CI.
 
 **Todavía no hay:** migración de los favoritos que tengas en tu navegador (son de otro perfil), actualizaciones
 automáticas, firma de código, ni pruebas de audio/vídeo con un canal real dentro de Electrón más allá de la carga del
