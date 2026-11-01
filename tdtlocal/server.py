@@ -59,6 +59,9 @@ class TdtServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
+    # A page asks for dozens of modules at once. With the default queue of 5 the system refuses the connections that
+    # do not fit (seen on Windows as ERR_CONNECTION_REFUSED with the server up) and the page loads without its scripts.
+    request_queue_size = 128
     server_version = f"TDTLocal/{__version__}"
     sys_version = ""
     server: TdtServer  # type: ignore[assignment]

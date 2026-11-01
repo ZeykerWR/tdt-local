@@ -401,6 +401,32 @@ class LogoTests(ServerCase):
         self.logo("ok")
         self.assertEqual(len(self.origin.requests), hits)  # served from disk
 
+    def test_a_burst_of_connections_is_not_refused(self):
+        """A page asks for dozens of modules at once: the listening queue must hold them (it did not on Windows)."""
+        import socket
+        import threading
+
+        from tdtlocal.server import TdtServer
+
+        self.assertGreaterEqual(TdtServer.request_queue_size, 64)
+        port = self.port
+        refused = []
+
+        def hit():
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=10) as conn:
+                    conn.sendall(b"GET /api/version HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                    conn.recv(64)
+            except OSError as exc:
+                refused.append(exc)
+
+        threads = [threading.Thread(target=hit) for _ in range(100)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(refused, [])
+
     def test_unknown_urls_are_not_fetched(self):
         status, _, _ = self.request("GET", "/logo?u=http%3A%2F%2F127.0.0.1%3A1%2Fx.png")
         self.assertEqual(status, 404)
