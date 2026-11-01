@@ -234,10 +234,16 @@ puerto de depuración de desarrollo (`TDT_DEBUG_PORT`), así que se comprueba de
 congelado, que un segundo lanzamiento le cede el paso al primero y que al salir no queda ningún proceso. En Windows, sin
 comprimir, la carpeta ronda los 335 MB (Chromium es casi todo).
 
-**Todavía no hay:** instaladores de esta app (el paso siguiente es meterla en Inno Setup, el `.dmg` y los paquetes de
-Linux), migración de los
-favoritos que tengas en tu navegador (son de otro perfil), actualizaciones, ni pruebas de audio/vídeo con un canal real
-dentro de Electrón más allá de la carga del reproductor.
+### Instaladores
+
+`python packaging/build.py` ya construye con esta app los instaladores de siempre (Inno Setup, `.dmg`, `.deb` y
+`.tar.gz`; ver [INSTALLERS.md](INSTALLERS.md)) y `packaging/smoke.py` prueba la app empaquetada. **Ninguna release los
+ha publicado todavía** (la primera será la 1.3.0), y lo comprobado a mano es solo la carpeta empaquetada y el `.zip`
+portable en Windows: el `setup.exe`, el `.dmg`, el `.deb` y el `.tar.gz` los construye la CI.
+
+**Todavía no hay:** migración de los favoritos que tengas en tu navegador (son de otro perfil), actualizaciones
+automáticas, firma de código, ni pruebas de audio/vídeo con un canal real dentro de Electrón más allá de la carga del
+reproductor.
 
 ## Fases propuestas
 

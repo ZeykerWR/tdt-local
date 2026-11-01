@@ -4,6 +4,9 @@
     python -m pip install pyinstaller          # certifi too, on macOS and Linux, for HTTPS certificates
     python packaging/build.py
     python packaging/build.py --server-only    # only dist/tdt-local-server/, the server the Electron app carries
+    python packaging/build.py --classic        # the earlier app: the server alone that opens your browser
+
+The installers carry the Electron app (desktop/) with the frozen server inside; it needs Node 20 or newer.
 
 Windows : ``tdt-local-<version>-windows-x64-setup.exe`` (Inno Setup 6) and a portable ``.zip``
 macOS   : ``tdt-local-<version>-macos-<arch>.dmg``
@@ -35,6 +38,7 @@ OUT = DIST / "installers"
 APP_NAME = "TDT local"
 SLUG = "tdt-local"
 SERVER_SLUG = "tdt-local-server"  # the server alone, for the Electron app (see docs/DESKTOP.md)
+ELECTRON_OUT = DIST / "electron"
 
 DESCRIPTION = "Visor local de la TDT española y la radio, con guía, multivisión, subtítulos y asistente de IA local."
 HOMEPAGE = os.environ.get("TDT_HOMEPAGE", "https://github.com/cibernicola/tdt-local")
@@ -72,7 +76,9 @@ def deb_control(version: str, arch: str, installed_size_kb: int) -> str:
         "Section: video\n"
         "Priority: optional\n"
         f"Architecture: {arch}\n"
-        "Depends: libc6 (>= 2.31)\n"
+        # what Electron (Chromium) loads; the second names are the ones Ubuntu 24.04 renamed (time_t transition)
+        "Depends: libc6 (>= 2.35), libgtk-3-0 | libgtk-3-0t64, libnss3, libxss1, libxtst6, "
+        "libatspi2.0-0 | libatspi2.0-0t64, libgbm1, libasound2 | libasound2t64, libuuid1\n"
         "Recommends: xdg-utils, ffmpeg\n"
         f"Installed-Size: {installed_size_kb}\n"
         "Maintainer: TDT local contributors <4579387+cibernicola@users.noreply.github.com>\n"
@@ -106,7 +112,8 @@ def deb_copyright() -> str:
         "License: Apache-2.0\n"
         " On Debian systems, the full text of the Apache License 2.0 can be found in\n"
         " /usr/share/common-licenses/Apache-2.0 and in /usr/share/doc/tdt-local/LICENSE.\n"
-        " This package also bundles hls.js (Apache-2.0) and the Python runtime (PSF License);\n"
+        " This package also bundles hls.js (Apache-2.0), the Python runtime (PSF License),\n"
+        " Electron (MIT) and Chromium (see /opt/tdt-local/LICENSES.chromium.html);\n"
         " see /usr/share/doc/tdt-local/NOTICE.\n"
     )
 
@@ -168,6 +175,28 @@ def pyinstaller(version: str, spec: str = "tdt-local.spec", name: str = SLUG) ->
     return app_dir
 
 
+def electron_app(version: str) -> Path:
+    """Package the Electron app around the frozen server; returns the folder with the result.
+
+    On Windows and Linux that is the app itself (``dist/electron/TDT local-<system>-<arch>/``); on macOS the folder that
+    holds ``TDT local.app``. Our licence and NOTICE go next to Electron's own LICENSE, which must stay.
+    """
+    desktop = ROOT / "desktop"
+    npm = shutil.which("npm")
+    if not npm:
+        raise SystemExit("Falta Node 20 o superior (npm no está en el PATH): hace falta para empaquetar la aplicación")
+    shutil.rmtree(ELECTRON_OUT, ignore_errors=True)
+    run([npm, "ci"], cwd=desktop)
+    run([npm, "run", "pack", "--", "--server", DIST / SERVER_SLUG, "--out", ELECTRON_OUT], cwd=desktop)
+    found = [d for d in ELECTRON_OUT.iterdir() if d.is_dir()]
+    if len(found) != 1:
+        raise SystemExit(f"se esperaba una carpeta en {ELECTRON_OUT} y hay {len(found)}")
+    app_dir = found[0]
+    shutil.copy2(ROOT / "NOTICE", app_dir / "NOTICE")
+    shutil.copy2(ROOT / "LICENSE", app_dir / "LICENSE-TDT-local.txt")
+    return app_dir
+
+
 # ---------------------------------------------------------------------------------------------- Windows
 def find_inno() -> Path:
     found = shutil.which("iscc") or shutil.which("ISCC")
@@ -209,10 +238,10 @@ def build_windows(version: str, app_dir: Path) -> list[Path]:
 
 
 # ------------------------------------------------------------------------------------------------ macOS
-def build_macos(version: str, _app_dir: Path) -> list[Path]:
-    app = DIST / f"{APP_NAME}.app"
-    if not app.is_dir():
-        raise SystemExit(f"no se ha generado {app}")
+def build_macos(version: str, app_dir: Path) -> list[Path]:
+    app = next((p for p in (app_dir / f"{APP_NAME}.app", DIST / f"{APP_NAME}.app") if p.is_dir()), None)
+    if app is None:
+        raise SystemExit(f"no se ha generado {APP_NAME}.app")
     run(["codesign", "--force", "--deep", "--sign", "-", app])  # ad-hoc: Apple Silicon refuses unsigned code
     staging = BUILD / "dmg"
     shutil.rmtree(staging, ignore_errors=True)
@@ -277,21 +306,33 @@ def _linux_deb(version: str, app_dir: Path) -> Path:
     (stage / "DEBIAN" / "control").write_text(deb_control(version, deb_arch(), size_kb), encoding="utf-8")
     _chmod_tree(stage)
     (stage / "DEBIAN").chmod(0o755)
+    sandbox = opt / "chrome-sandbox"  # Chromium's sandbox helper must be setuid root (dpkg-deb --root-owner-group)
+    if sandbox.exists():
+        sandbox.chmod(0o4755)
     deb = OUT / artifact_name(version, "", "deb")
     run(["dpkg-deb", "--build", "--root-owner-group", stage, deb])
     return deb
 
 
-INSTALL_SH = """#!/bin/sh
+INSTALL_SH = r"""#!/bin/sh
 # Installs TDT local for the current user (no root needed). Remove it with uninstall.sh.
 set -e
 here="$(cd "$(dirname "$0")" && pwd)"
 dest="${XDG_DATA_HOME:-$HOME/.local/share}"
 mkdir -p "$dest/tdt-local-app" "$HOME/.local/bin" "$dest/applications" "$dest/icons/hicolor/256x256/apps"
 cp -R "$here/tdt-local/." "$dest/tdt-local-app/"
-ln -sf "$dest/tdt-local-app/tdt-local" "$HOME/.local/bin/tdt-local"
+# Chromium's sandbox needs either a setuid helper (only root can set it) or unprivileged user namespaces. Without
+# either the app cannot start, so the launcher checks at every start and only then falls back to --no-sandbox.
+cat > "$HOME/.local/bin/tdt-local" <<EOF
+#!/bin/sh
+app="$dest/tdt-local-app"
+flags=""
+if [ ! -u "\$app/chrome-sandbox" ] && ! unshare --user true 2>/dev/null; then flags="--no-sandbox"; fi
+exec "\$app/tdt-local" \$flags "\$@"
+EOF
+chmod 755 "$HOME/.local/bin/tdt-local"
 cp "$here/icon.png" "$dest/icons/hicolor/256x256/apps/tdt-local.png"
-sed "s|^Exec=.*|Exec=$dest/tdt-local-app/tdt-local|" "$here/tdt-local.desktop" > "$dest/applications/tdt-local.desktop"
+sed "s|^Exec=.*|Exec=$HOME/.local/bin/tdt-local|" "$here/tdt-local.desktop" > "$dest/applications/tdt-local.desktop"
 echo "TDT local instalado. Búscalo en el menú de aplicaciones o ejecuta: tdt-local"
 """
 
@@ -335,7 +376,11 @@ def main() -> int:
         return 1
     version = read_version()
     OUT.mkdir(parents=True, exist_ok=True)
-    app_dir = pyinstaller(version)
+    if "--classic" in sys.argv[1:]:  # the earlier app (opens your browser): one PyInstaller step
+        app_dir = pyinstaller(version)
+    else:
+        pyinstaller(version, "tdt-local-server.spec", SERVER_SLUG)
+        app_dir = electron_app(version)
     artifacts = builder(version, app_dir)
     sums = OUT / f"SHA256SUMS-{sys.platform.rstrip('0123456789')}-{machine()}.txt"  # one per runner; CI merges them
     existing = sums.read_text(encoding="utf-8").splitlines() if sums.exists() else []

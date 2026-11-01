@@ -83,6 +83,21 @@ class BuildHelperTests(unittest.TestCase):
     def test_every_platform_has_a_builder(self):
         self.assertEqual(set(build.BUILDERS), {"win32", "darwin", "linux"})
 
+    def test_deb_depends_on_what_electron_loads(self):
+        text = build.deb_control("1.2.3", "amd64", 1)
+        depends = next(line for line in text.splitlines() if line.startswith("Depends: "))
+        for needle in ("libc6 (>= 2.35)", "libgtk-3-0 | libgtk-3-0t64", "libnss3", "libasound2 | libasound2t64"):
+            self.assertIn(needle, depends)
+
+    def test_the_user_install_chooses_the_sandbox_at_launch(self):
+        self.assertIn("chrome-sandbox", build.INSTALL_SH)
+        self.assertIn("unshare --user true", build.INSTALL_SH)
+        self.assertIn("--no-sandbox", build.INSTALL_SH)  # only as a fallback, decided when it starts
+
+    def test_electron_app_needs_node_and_node_is_named_in_the_docstring(self):
+        self.assertIn("Node 20", build.__doc__)
+        self.assertTrue(callable(build.electron_app))
+
 
 class PackagingFilesTests(unittest.TestCase):
     def test_icons_are_valid_images(self):
@@ -104,6 +119,35 @@ class PackagingFilesTests(unittest.TestCase):
         for define in ("AppVersion", "SourceDir", "RepoDir", "OutputDir", "OutputName"):
             self.assertIn(define, text)
         self.assertIn("PrivilegesRequired=lowest", text)  # no administrator needed
+
+    def test_windows_installer_cleans_the_libraries_of_the_earlier_app(self):
+        text = (PACKAGING / "windows" / "installer.iss").read_text(encoding="ascii")
+        self.assertIn("[InstallDelete]", text)
+        self.assertIn(r'Name: "{app}\_internal"', text)
+        self.assertIn(
+            '#define AppExe "tdt-local.exe"', text
+        )  # the Electron app keeps the name, so the shortcuts survive
+
+    def test_server_spec_has_a_console_and_bundles_the_static_files(self):
+        spec = (PACKAGING / "tdt-local-server.spec").read_text(encoding="utf-8")
+        for needle in ("tdtlocal/static", "TDT_PYTHON_LICENSE", "console=True", 'packaging" / "server.py'):
+            self.assertIn(needle, spec)
+        self.assertIn("utf-8", (PACKAGING / "server.py").read_text(encoding="utf-8"))
+
+    def test_release_workflow_runs_the_smoke_test_and_has_node(self):
+        workflow = (PROJECT_DIR / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        for needle in ("actions/setup-node", "packaging/smoke.py", "xvfb-run", "test -u /opt/tdt-local/chrome-sandbox"):
+            self.assertIn(needle, workflow)
+
+    def test_smoke_finds_the_program_in_the_packaged_folder(self):
+        spec = importlib.util.spec_from_file_location("tdt_smoke", PACKAGING / "smoke.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(smoke.sys, "platform", "win32"):
+                self.assertEqual(smoke.executable(Path(tmp)), Path(tmp) / "tdt-local.exe")
+            with mock.patch.object(smoke.sys, "platform", "linux"):
+                self.assertEqual(smoke.executable(Path(tmp)), Path(tmp) / "tdt-local")
 
     def test_spec_bundles_static_files_and_the_licences(self):
         spec = (PACKAGING / "tdt-local.spec").read_text(encoding="utf-8")

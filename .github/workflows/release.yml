@@ -40,12 +40,34 @@ jobs:
               sys.exit(f"el tag {tag} no coincide con la versión {__version__}")
       - name: Tests
         run: python -m unittest discover -s tests -t .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Build tools
         run: python -m pip install pyinstaller certifi
       - name: Build the installers
         env:
           TDT_HOMEPAGE: ${{ github.server_url }}/${{ github.repository }}
         run: python packaging/build.py
+      # The packaged app has no debug port, so it is checked from outside: it starts, serves the page, hands over a second
+      # launch and stops when asked. Linux needs a display (xvfb).
+      - name: Smoke test the packaged app
+        if: runner.os != 'Linux'
+        shell: bash
+        run: python packaging/smoke.py "$(ls -d dist/electron/*/)"
+      - name: Smoke test the packaged app (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          xvfb-run -a python packaging/smoke.py "$(ls -d dist/electron/*/)"
+      # The .deb itself: its dependencies install and Chromium's sandbox helper is setuid, as the package says
+      - name: Smoke test the .deb
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./dist/installers/*.deb
+          test -u /opt/tdt-local/chrome-sandbox
+          xvfb-run -a python packaging/smoke.py /opt/tdt-local
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.os }}

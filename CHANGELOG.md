@@ -16,6 +16,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); e
   Chromium que no se usan. Todavía sin instaladores. Comprobado en Windows: arranca, usa el servidor congelado, un segundo
   lanzamiento cede el paso al primero y al salir no queda ningún proceso.
 
+- **Los instaladores llevan la aplicación de Electrón** (Windows, macOS y Linux): `packaging/build.py` congela el
+  servidor, empaqueta la app y la convierte en el `setup.exe`/`.zip`, el `.dmg` y el `.deb`/`.tar.gz`. El instalador de
+  Windows mantiene su identidad y limpia la carpeta `_internal` de la versión anterior, así que actualiza encima;
+  los datos son los mismos. En Linux el `.deb` deja `chrome-sandbox` con los permisos que pide Chromium y el
+  `install.sh` del `.tar.gz` crea un lanzador que usa `--no-sandbox` solo si el sistema no permite otra cosa. Piden
+  macOS 13 o superior y, el `.deb`, glibc 2.35. `python packaging/build.py --classic` construye aún la app de antes.
+- **`packaging/smoke.py`**, una prueba de humo de la app empaquetada (arranca, sirve la página, un segundo lanzamiento
+  cede el paso y al salir se cierra todo), que la CI pasa en los tres sistemas y, en Linux, también sobre el `.deb`
+  instalado.
+
 ### Correcciones
 - **Aplicación de escritorio: se perdían favoritos, último canal y volumen al cerrarla.** Cada arranque elegía un puerto
   distinto y la página guarda esas preferencias por origen (que incluye el puerto). Ahora la app recuerda el último puerto,

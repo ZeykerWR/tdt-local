@@ -41,6 +41,12 @@ Included in the installers (not in the source repository)
 Python  https://www.python.org   Python Software Foundation License
   The installers bundle the Python runtime; its licence is shipped as
   licenses/PYTHON-LICENSE.txt.
+Electron  https://www.electronjs.org   MIT
+  The installers bundle Electron, which carries Chromium and Node.js. Electron's own LICENSE
+  and LICENSES.chromium.html (the licences of Chromium and what it includes) are shipped in
+  the application folder and must stay with it.
 PyInstaller  https://pyinstaller.org   GPL-2.0 with the bootloader exception
   Used to build the installers. The exception allows distributing the resulting
   programs under any licence.
+@electron/packager  https://github.com/electron/packager   BSD-2-Clause
+  Used to build the desktop application; not part of what is distributed.
